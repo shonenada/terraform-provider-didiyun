@@ -3,7 +3,7 @@
 
 UPGRADE COMPATIBILITY NOTES:
 
-* Template provider v2.0.0 switches template implementations from HIL to HCL 2.0 templates and uses the set of functions from Terraform v0.12. The new version is broadly compatible for most straightforward template usage, but there are some particular differences to watch out for:
+* DidiYun provider v2.0.0 switches template implementations from HIL to HCL 2.0 templates and uses the set of functions from Terraform v0.12. The new version is broadly compatible for most straightforward template usage, but there are some particular differences to watch out for:
   * HCL 2.0 template syntax includes a new `%{ ... }` construct for control structures, like `%{ if a == b } ... %{ endif }`. If your existing templates contain any `%{` sequences you will need to now escape them as `%%{` to ensure correct parsing.
   * The `format` function from Terraform is now a new implementation using the HCL type system rather than based on the Go `fmt` package. The basic features are still compatible, but there are some differences in the handling of some more complex verbs, like `%#v` which now uses JSON syntax instead of Go-like syntax.
   * HIL apparently incorrectly treated `$$` (without a following `{` as an escape for `$` even though such escaping was not actually required, while the new parser correctly only deals with `$${` as an escape for `${`. This issue was unfortunately not known at the time of the 2.0.0 release. If you have a template that was using a sequence like `$$FOO` as an escaped form of `$FOO`, remove the extra dollar sign to get the expected interpretation. Dollar sign escaping is only needed as part of escaping the full `${` sequence, not dollar signs in isolation.

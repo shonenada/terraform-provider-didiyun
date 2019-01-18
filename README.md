@@ -1,4 +1,4 @@
-Terraform Provider
+Terraform Provider 
 ==================
 
 - Website: https://www.terraform.io
@@ -6,11 +6,6 @@ Terraform Provider
 - Mailing list: [Google Groups](http://groups.google.com/group/terraform-tool)
 
 <img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
-
-Maintainers
------------
-
-This provider plugin is maintained by the Terraform team at [HashiCorp](https://www.hashicorp.com/).
 
 Requirements
 ------------
@@ -22,8 +17,8 @@ Usage
 ---------------------
 
 ```
-# For example, restrict template version in 0.1.x
-provider "template" {
+# For example, restrict didiyun version in 0.1.x
+provider "didiyun" {
   version = "~> 0.1"
 }
 ```
@@ -31,17 +26,17 @@ provider "template" {
 Building The Provider
 ---------------------
 
-Clone repository to: `$GOPATH/src/github.com/terraform-providers/terraform-provider-template`
+Clone repository to: `$GOPATH/src/github.com/shonenada/terraform-provider-didiyun`
 
 ```sh
-$ mkdir -p $GOPATH/src/github.com/terraform-providers; cd $GOPATH/src/github.com/terraform-providers
-$ git clone git@github.com:terraform-providers/terraform-provider-template
+$ mkdir -p $GOPATH/src/github.com/shonenada; cd $GOPATH/src/github.com/shonenada
+$ git clone https://github.com/shonenada/terraform-provider-didiyun
 ```
 
 Enter the provider directory and build the provider
 
 ```sh
-$ cd $GOPATH/src/github.com/terraform-providers/terraform-provider-template
+$ cd $GOPATH/src/github.com/shonenada/terraform-provider-didiyun
 $ make build
 ```
 
@@ -59,7 +54,7 @@ To compile the provider, run `make build`. This will build the provider and put 
 ```sh
 $ make build
 ...
-$ $GOPATH/bin/terraform-provider-template
+$ $GOPATH/bin/terraform-provider-didiyun
 ...
 ```
 

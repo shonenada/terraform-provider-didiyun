@@ -1,4 +1,4 @@
-module github.com/terraform-providers/terraform-provider-template
+module github.com/terraform-providers/terraform-provider-didiyun
 
 require (
 	github.com/aws/aws-sdk-go v1.16.12 // indirect
