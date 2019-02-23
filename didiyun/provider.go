@@ -7,9 +7,17 @@ import (
 
 func Provider() terraform.ResourceProvider {
 	return &schema.Provider{
-		DataSourcesMap: map[string]*schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"token": {
+				Type:     schema.TypeString,
+				Required: true,
+			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
+			"didiyun_dc2": resourceDidiyunDC2(),
+		},
+		DataSourcesMap: map[string]*schema.Resource{
+			"didiyun_regions": dataSourceDidiyunRegions(),
 		},
 	}
 }
