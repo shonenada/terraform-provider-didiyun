@@ -2,6 +2,7 @@ package didiyun
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
@@ -60,7 +61,7 @@ func resourceDidiyunDC2() *schema.Resource {
 			},
 			"name": {
 				Type:         schema.TypeString,
-				Required:     false,
+				Optional:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
 			"auto_continue": {
@@ -73,7 +74,7 @@ func resourceDidiyunDC2() *schema.Resource {
 				Optional: true,
 				Default:  0,
 			},
-			"count": {
+			"dc2_count": {
 				Type:     schema.TypeInt,
 				Optional: true,
 				Default:  1,
@@ -147,64 +148,68 @@ func resourceDidiyunDC2() *schema.Resource {
 			"eip": {
 				Type:     schema.TypeMap,
 				Optional: true,
-				Elem: map[string]*schema.Schema{
-					"band_width": {
-						Type:     schema.TypeInt,
-						Optional: true,
-					},
-					"charge_with_flow": {
-						Type:     schema.TypeBool,
-						Optional: true,
-						Default:  false,
-					},
-					"tags": {
-						Type:     schema.TypeSet,
-						Optional: true,
-						Elem: &schema.Schema{
-							Type: schema.TypeString,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"band_width": {
+							Type:     schema.TypeInt,
+							Optional: true,
 						},
-					},
-					"ip_address": {
-						Type:     schema.TypeString,
-						Computed: true,
+						"charge_with_flow": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+						},
+						"tags": {
+							Type:     schema.TypeSet,
+							Optional: true,
+							Elem: &schema.Schema{
+								Type: schema.TypeString,
+							},
+						},
+						"ip_address": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
 					},
 				},
 			},
 			"ebs": {
 				Type:     schema.TypeList,
 				Optional: true,
-				Elem: &map[string]schema.Schema{
-					"count": {
-						Type:     schema.TypeInt,
-						Optional: true,
-						Default:  1,
-					},
-					"attr": {
-						Type:     schema.TypeString,
-						Optional: true,
-					},
-					"name": {
-						Type:     schema.TypeString,
-						Optional: true,
-					},
-					"size": {
-						Type:         schema.TypeInt,
-						Required:     true,
-						ValidateFunc: validation.IntBetween(20, 16384),
-					},
-					"disktype": {
-						Type:     schema.TypeString,
-						Optional: true,
-					},
-					"snap_uuid": {
-						Type:     schema.TypeString,
-						Optional: true,
-					},
-					"tags": {
-						Type: schema.TypeSet,
-						Elem: &schema.Schema{
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"ebs_count": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Default:  1,
+						},
+						"attr": {
 							Type:     schema.TypeString,
-							Required: true,
+							Optional: true,
+						},
+						"name": {
+							Type:     schema.TypeString,
+							Optional: true,
+						},
+						"size": {
+							Type:         schema.TypeInt,
+							Required:     true,
+							ValidateFunc: validation.IntBetween(20, 16384),
+						},
+						"disktype": {
+							Type:     schema.TypeString,
+							Optional: true,
+						},
+						"snap_uuid": {
+							Type:     schema.TypeString,
+							Optional: true,
+						},
+						"tags": {
+							Type:     schema.TypeSet,
+							Optional: true,
+							Elem: &schema.Schema{
+								Type: schema.TypeString,
+							},
 						},
 					},
 				},
@@ -246,24 +251,96 @@ func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*CombinedConfig).Client()
+
+	var sshkeys []string
+	if v, ok := d.GetOk("sshkeys"); ok {
+		for _, k := range v.(*schema.Set).List() {
+			sshkeys = append(sshkeys, k.(string))
+		}
+	}
+
+	var dc2Tags []string
+	if v, ok := d.GetOk("tags"); ok {
+		for _, t := range v.(*schema.Set).List() {
+			dc2Tags = append(dc2Tags, t.(string))
+		}
+	}
+
+	var sgUuids []string
+	if v, ok := d.GetOk("sg_uuids"); ok {
+		for _, id := range v.(*schema.Set).List() {
+			sgUuids = append(sgUuids, id.(string))
+		}
+	}
+
+	var eip dc2.EipInput
+	if data, ok := d.GetOk("eip"); ok {
+		d := data.(map[string]interface{})
+		if v, ok := d["band_width"]; ok {
+			eip.BandWidth, _ = strconv.Atoi(v.(string))
+		}
+
+		if v, ok := d["charge_with_flow"]; ok {
+			eip.ChargeWithFlow = v.(bool)
+		}
+
+		if v, ok := d["tags"]; ok {
+			eip.EipTags = v.([]string)
+		}
+	}
+
+	var ebs []dc2.EbsInput
+	if data, ok := d.GetOk("ebs"); ok {
+		d := data.([]map[string]interface{})
+		for _, e := range d {
+			t := dc2.EbsInput{}
+
+			if v, ok := e["count"]; ok {
+				t.Count, _ = strconv.Atoi(v.(string))
+			}
+
+			if v, ok := e["name"]; ok {
+				t.Name = v.(string)
+			}
+
+			if v, ok := e["size"]; ok {
+				t.Size = v.(int64)
+			}
+
+			if v, ok := e["disktype"]; ok {
+				t.DiskType = v.(string)
+			}
+
+			if v, ok := e["snap_uuid"]; ok {
+				t.SnapUuid = v.(string)
+			}
+
+			if v, ok := e["tags"]; ok {
+				t.EbsTags = v.([]string)
+			}
+
+			ebs = append(ebs, t)
+		}
+	}
+
 	req := dc2.CreateRequest{
 		RegionId:     d.Get("region_id").(string),
 		ZoneId:       d.Get("zone_id").(string),
 		Name:         d.Get("name").(string),
 		AutoContinue: d.Get("auto_continue").(bool),
 		PayPeriod:    d.Get("pay_period").(int),
-		Count:        d.Get("count").(int),
+		Count:        d.Get("dc2_count").(int),
 		SubnetUuid:   d.Get("subnet_uuid").(string),
 		Dc2Model:     d.Get("dc2_model").(string),
 		ImgUuid:      d.Get("image_uuid").(string),
-		PubKeyUuids:  d.Get("sshkeys").([]string),
+		PubKeyUuids:  sshkeys,
 		Password:     d.Get("password").(string),
 		RootDiskType: d.Get("rootdisk_type").(string),
 		RootDiskSize: d.Get("rootdisk_size").(int),
-		Dc2Tags:      d.Get("tags").([]string),
-		SgUuids:      d.Get("sg_uuids").([]string),
-		Eip:          d.Get("eip").(dc2.EipInput),
-		Ebs:          d.Get("ebs").([]dc2.EbsInput),
+		Dc2Tags:      dc2Tags,
+		SgUuids:      sgUuids,
+		Eip:          eip,
+		Ebs:          ebs,
 	}
 
 	data, err := client.Dc2().Create(&req)
