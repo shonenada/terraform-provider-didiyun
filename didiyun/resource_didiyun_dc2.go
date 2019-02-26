@@ -97,7 +97,7 @@ func resourceDidiyunDC2() *schema.Resource {
 				ForceNew: true,
 				Optional: true,
 			},
-			"sshkkeys": {
+			"sshkeys": {
 				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Schema{
