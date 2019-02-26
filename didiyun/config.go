@@ -12,12 +12,14 @@ type CombinedConfig struct {
 	client *didiyun.Client
 }
 
-func (c *Config) Client() (*didiyun.Client, error) {
+func (c *CombinedConfig) Client() *didiyun.Client { return c.client }
+
+func (c *Config) Client() *CombinedConfig {
 	client := didiyun.Client{
 		AccessToken: c.AccessToken,
 	}
 
 	return &CombinedConfig{
-		client: didiyun.Client,
+		client: &client,
 	}
 }

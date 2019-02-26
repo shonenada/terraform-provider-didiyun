@@ -16,9 +16,6 @@ func Provider() terraform.ResourceProvider {
 		ResourcesMap: map[string]*schema.Resource{
 			"didiyun_dc2": resourceDidiyunDC2(),
 		},
-		DataSourcesMap: map[string]*schema.Resource{
-			"didiyun_regions": dataSourceDidiyunRegions(),
-		},
 		ConfigureFunc: providerConfigure,
 	}
 }
@@ -27,5 +24,5 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	config := Config{
 		AccessToken: d.Get("access_token").(string),
 	}
-	return config.Client()
+	return config.Client(), nil
 }

@@ -1,9 +1,10 @@
 package didiyun
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
-	didyun "github.com/shonenada/didiyun-go"
 	dc2 "github.com/shonenada/didiyun-go/dc2"
 	ds "github.com/shonenada/didiyun-go/schema"
 )
@@ -11,25 +12,25 @@ import (
 func flattenDidiyunTags(tags []string) *schema.Set {
 	flattentags := schema.NewSet(schema.HashString, []interface{}{})
 	for _, v := range tags {
-		flattentags.add(v)
+		flattentags.Add(v)
 	}
 	return flattentags
 }
 
-func flattenDidiyunEip(eip *dc.Eip) map[string]interface{} {
+func flattenDidiyunEip(eip ds.Eip) map[string]string {
 	result := map[string]string{
 		"ip_address": eip.Ip,
 	}
 	return result
 }
 
-func flattenDidiyunEbs(ebs *dc.Ebs) []map[string]interface{} {
+func flattenDidiyunEbs(ebs []ds.Ebs) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0, 1)
 	for _, v := range ebs {
 		r := make(map[string]interface{})
 		r["attr"] = v.Attr
 		r["name"] = v.Name
-		r["size"] = v.Size
+		r["size"] = v.Spec.Size
 		r["disktype"] = v.Spec.DiskType
 		r["tags"] = v.EbsTags
 
@@ -78,21 +79,21 @@ func resourceDidiyunDC2() *schema.Resource {
 				Default:  1,
 			},
 			"subnet_uuid": {
-				Type:     schema.String,
+				Type:     schema.TypeString,
 				Optional: true,
 			},
 			"dc2_model": {
-				Type:        schema.String,
+				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Model of DC2, all avaliable models: https://docs.didiyun.com/static/docs-content/products/DC2/%E5%88%9B%E5%BB%BADC2%EF%BC%88CreateDC2%EF%BC%89.html#Dc2Models",
 			},
 			"image_uuid": {
-				Type:     schema.String,
+				Type:     schema.TypeString,
 				ForceNew: true,
 				Optional: true,
 			},
 			"snap_uuid": {
-				Type:     schema.String,
+				Type:     schema.TypeString,
 				ForceNew: true,
 				Optional: true,
 			},
@@ -140,7 +141,7 @@ func resourceDidiyunDC2() *schema.Resource {
 				Description: "Intranet IP",
 			},
 			"os_type": {
-				Type:     schema.String,
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 			"eip": {
@@ -172,7 +173,7 @@ func resourceDidiyunDC2() *schema.Resource {
 			"ebs": {
 				Type:     schema.TypeList,
 				Optional: true,
-				Elem: &schema.Schema{
+				Elem: &map[string]schema.Schema{
 					"count": {
 						Type:     schema.TypeInt,
 						Optional: true,
@@ -223,12 +224,10 @@ func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
 		Dc2Uuid:  uuid,
 	}
 
-	r, err := client.Dc2().Get(&req)
+	data, err := client.Dc2().Get(&req)
 	if err != nil {
 		return fmt.Errorf("Failed to read Dc2: %v", err)
 	}
-
-	data := r[0]
 
 	d.Set("name", data.Name)
 	d.Set("ip", data.Ip)
@@ -248,32 +247,30 @@ func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
 func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*CombinedConfig).Client()
 	req := dc2.CreateRequest{
-		RegionId:     d.Get("region_id"),
-		ZoneId:       d.Get("zone_id"),
-		Name:         d.Get("name"),
-		AutoContinue: d.Get("auto_continue"),
-		PayPeriod:    d.Get("pay_period"),
-		Count:        d.Get("count"),
-		SubnetUuid:   d.Get("subnet_uuid"),
-		Dc2Model:     d.Get("dc2_model"),
-		ImgUuid:      d.Get("image_uuid"),
-		PubKeyUuids:  d.Get("sshkeys"),
-		Password:     d.Get("password"),
-		RootDiskType: d.Get("rootdisk_type"),
-		RootDiskSize: d.Get("rootdisk_size"),
-		Dc2Tags:      d.Get("tags"),
-		SgUuids:      d.Get("sg_uuids"),
-		Eip:          d.Get("eip"),
-		Ebs:          d.Get("ebs"),
+		RegionId:     d.Get("region_id").(string),
+		ZoneId:       d.Get("zone_id").(string),
+		Name:         d.Get("name").(string),
+		AutoContinue: d.Get("auto_continue").(bool),
+		PayPeriod:    d.Get("pay_period").(int),
+		Count:        d.Get("count").(int),
+		SubnetUuid:   d.Get("subnet_uuid").(string),
+		Dc2Model:     d.Get("dc2_model").(string),
+		ImgUuid:      d.Get("image_uuid").(string),
+		PubKeyUuids:  d.Get("sshkeys").([]string),
+		Password:     d.Get("password").(string),
+		RootDiskType: d.Get("rootdisk_type").(string),
+		RootDiskSize: d.Get("rootdisk_size").(int),
+		Dc2Tags:      d.Get("tags").([]string),
+		SgUuids:      d.Get("sg_uuids").([]string),
+		Eip:          d.Get("eip").(dc2.EipInput),
+		Ebs:          d.Get("ebs").([]dc2.EbsInput),
 	}
 
-	response, err := client.Dc2().Create(*req)
+	data, err := client.Dc2().Create(&req)
 
 	if err != nil {
 		return fmt.Errorf("Failed to create DC2: %v", err)
 	}
-
-	data := response[0]
 
 	d.SetId(data.ResourceUuid)
 
