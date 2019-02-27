@@ -46,6 +46,9 @@ func resourceDidiyunDC2() *schema.Resource {
 		Create: resourceDidiyunDC2Create,
 		Update: resourceDidiyunDC2Update,
 		Delete: resourceDidiyunDC2Delete,
+		Importer: &schema.ResourceImporter{
+			State: schema.ImportStatePassthrough,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"region_id": {
