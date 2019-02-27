@@ -3,10 +3,13 @@ package didiyun
 import (
 	"fmt"
 	"strconv"
+	"time"
 
+	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
 	dc2 "github.com/shonenada/didiyun-go/dc2"
+	didi_job "github.com/shonenada/didiyun-go/job"
 	ds "github.com/shonenada/didiyun-go/schema"
 )
 
@@ -351,6 +354,32 @@ func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create DC2: %v", err)
 	}
+
+	err = resource.Retry(2*time.Minute, func() *resource.RetryError {
+		jobs, err := client.Job().GetResult(&didi_job.ResultRequest{
+			RegionId: d.Get("region_id").(string),
+			JobUuids: data.Uuid,
+		})
+		if err != nil {
+			return resource.RetryableError(fmt.Errorf("Failed to get job: %v", err))
+		}
+
+		job := (*jobs)[0]
+
+		if job.Progress < 100 {
+			return resource.RetryableError(fmt.Errorf("Wait for job"))
+		}
+
+		if !job.Done {
+			return resource.RetryableError(fmt.Errorf("Wait for job"))
+		}
+
+		if !job.Success {
+			return resource.NonRetryableError(fmt.Errorf("Failed to execute job: %v", job.Result))
+		}
+
+		return nil
+	})
 
 	d.SetId(data.ResourceUuid)
 
