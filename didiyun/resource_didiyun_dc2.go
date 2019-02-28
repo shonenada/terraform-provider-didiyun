@@ -21,19 +21,19 @@ func flattenDidiyunTags(tags []string) *schema.Set {
 	return flattentags
 }
 
-func flattenDidiyunEip(eip ds.Eip) map[string]string {
+func flattenDidiyunEip(eip ds.EipInfo) map[string]string {
 	result := map[string]string{
 		"ip_address": eip.Ip,
 	}
 	return result
 }
 
-func flattenDidiyunEbs(ebs []ds.Ebs) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, 1)
+func flattenDidiyunEbs(ebs []ds.EbsInfo) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0, len(ebs))
 	for _, v := range ebs {
 		r := make(map[string]interface{})
 		r["attr"] = v.Attr
-		r["name"] = v.Name
+		r["ebs_name"] = v.Name
 		r["size"] = v.Spec.Size
 		r["disktype"] = v.Spec.DiskType
 		r["tags"] = v.EbsTags
@@ -193,13 +193,13 @@ func resourceDidiyunDC2() *schema.Resource {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
-						"name": {
+						"ebs_name": {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
 						"size": {
 							Type:         schema.TypeInt,
-							Required:     true,
+							Optional:     true,
 							ValidateFunc: validation.IntBetween(20, 16384),
 						},
 						"disktype": {
@@ -246,7 +246,10 @@ func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("region_id", data.Region.Id)
 	d.Set("zone_id", data.Region.Zone.Id)
 	d.Set("eip", flattenDidiyunEip(data.Eip))
-	d.Set("ebs", flattenDidiyunEbs(data.Ebs))
+
+	if err := d.Set("ebs", flattenDidiyunEbs(data.Ebs)); err != nil {
+		return fmt.Errorf("[DEBUG] Error setting Dc2 Ebs - error: %#v", err)
+	}
 
 	if err := d.Set("tags", flattenDidiyunTags(data.Tags)); err != nil {
 		return fmt.Errorf("Failed to set `tags`: %v", err)
@@ -297,8 +300,9 @@ func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 
 	var ebs []dc2.EbsInput
 	if data, ok := d.GetOk("ebs"); ok {
-		d := data.([]map[string]interface{})
-		for _, e := range d {
+		d := data.([]interface{})
+		for _, each := range d {
+			e := each.(map[string]interface{})
 			t := dc2.EbsInput{}
 
 			if v, ok := e["count"]; ok {
