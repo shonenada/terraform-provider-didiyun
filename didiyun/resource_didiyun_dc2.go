@@ -359,31 +359,9 @@ func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Failed to create DC2: %v", err)
 	}
 
-	err = resource.Retry(2*time.Minute, func() *resource.RetryError {
-		jobs, err := client.Job().GetResult(&didi_job.ResultRequest{
-			RegionId: d.Get("region_id").(string),
-			JobUuids: data.Uuid,
-		})
-		if err != nil {
-			return resource.RetryableError(fmt.Errorf("Failed to get job: %v", err))
-		}
-
-		job := (*jobs)[0]
-
-		if job.Progress < 100 {
-			return resource.RetryableError(fmt.Errorf("Wait for job"))
-		}
-
-		if !job.Done {
-			return resource.RetryableError(fmt.Errorf("Wait for job"))
-		}
-
-		if !job.Success {
-			return resource.NonRetryableError(fmt.Errorf("Failed to execute job: %v", job.Result))
-		}
-
-		return nil
-	})
+	if err := WaitForJob(d.Get("region_id").(string), data.Uuid); err != nil {
+		return fmt.Errorf("Failed to create DC2: %v", err)
+	}
 
 	d.SetId(data.ResourceUuid)
 
@@ -395,5 +373,31 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceDidiyunDC2Delete(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*CombinedConfig).Client()
+
+	req := dc.DeleteRequest{
+		RegionId:  d.Get("region_id").(string),
+		DeleteEip: true,
+		DeleteEbs: true,
+		IgnoreSLB: true,
+		Dc2: []dc.DeleteInput{
+			dc.DeleteInput{
+				Dc2Uuid: d.Id(),
+			},
+		},
+	}
+
+	_, err := client.Dc2().Delete(&req)
+
+	if err != nil {
+		return fmt.Errorf("Failed to delete DC2: %v", err)
+	}
+
+	if err := WaitForJob(d.Get("region_id").(string), data.Uuid); err != nil {
+		return fmt.Errorf("Failed to delete DC2: %v", err)
+	}
+
+	d.SetId("")
+
 	return nil
 }
