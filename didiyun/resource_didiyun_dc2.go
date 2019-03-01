@@ -353,23 +353,97 @@ func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 		Ebs:          ebs,
 	}
 
-	data, err := client.Dc2().Create(&req)
+	job, err := client.Dc2().Create(&req)
 
 	if err != nil {
 		return fmt.Errorf("Failed to create DC2: %v", err)
 	}
 
-	if err := WaitForJob(d.Get("region_id").(string), data.Uuid); err != nil {
+	if err := WaitForJob(d.Get("region_id").(string), job.Uuid); err != nil {
 		return fmt.Errorf("Failed to create DC2: %v", err)
 	}
 
-	d.SetId(data.ResourceUuid)
+	d.SetId(job.ResourceUuid)
 
 	return resourceDidiyunDC2Read(d, meta)
 }
 
 func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
-	return nil
+	client := meta.(*CombinedConfig).Client()
+
+	id := d.Id()
+	region_id := d.Get("region_id").(string)
+
+	if d.HasChange("name") {
+		name := d.Get("name").(string)
+		req := dc.ChangeNameRequest{
+			RegionId: region_id,
+			Dc2: []dc.ChangeNameInput{
+				{
+					Dc2Uuid: id,
+					Name:    name,
+				},
+			},
+		}
+
+		job, err := client.Dc2().ChangeName(&req)
+
+		if err != nil {
+			return fmt.Errorf("Failed update name of Dc2: %v", id)
+		}
+
+		if err := WaitForJob(region_id, job.Uuid); err != nil {
+			return fmt.Errorf("Failed update name of Dc2: %v", id)
+		}
+	}
+
+	if d.HasChange("password") {
+		password := d.Get("password").(string)
+		req := dc.ChangePasswordRequest{
+			RegionId: region_id,
+			Dc2: []dc.ChangePasswordInput{
+				{
+					Dc2Uuid:  id,
+					Password: password,
+				},
+			},
+		}
+
+		job, err := client.Dc2().ChangePassword(&req)
+
+		if err != nil {
+			return fmt.Errorf("Failed to change password of dc2: %v", id)
+		}
+
+		if err := WaitForJob(region_id, job.Uuid); err != nil {
+			return fmt.Errorf("Failed to change password of dc2: %v", id)
+		}
+	}
+
+	if d.HasChange("dc2_model") {
+		model := d.Get("dc2_model").(string)
+		req := dc.ChangeSpecRequest{
+			RegionId: region_id,
+			Dc2: []dc.ChangePasswordInput{
+				{
+					Dc2Uuid:  id,
+					Dc2Model: model,
+				},
+			},
+		}
+
+		job, err := client.Dc2().ChangeSpec(&req)
+
+		if err != nil {
+			return fmt.Errorf("Failed to change model of dc2: %v", id)
+		}
+
+		if err := WaitForJob(region_id, job.Uuid); err != nil {
+			return fmt.Errorf("Failed to change model of dc2: %v", id)
+		}
+	}
+
+	return resourceDidiyunDC2Read(d, meta)
 }
 
 func resourceDidiyunDC2Delete(d *schema.ResourceData, meta interface{}) error {
@@ -387,13 +461,13 @@ func resourceDidiyunDC2Delete(d *schema.ResourceData, meta interface{}) error {
 		},
 	}
 
-	_, err := client.Dc2().Delete(&req)
+	job, err := client.Dc2().Delete(&req)
 
 	if err != nil {
 		return fmt.Errorf("Failed to delete DC2: %v", err)
 	}
 
-	if err := WaitForJob(d.Get("region_id").(string), data.Uuid); err != nil {
+	if err := WaitForJob(d.Get("region_id").(string), job.Uuid); err != nil {
 		return fmt.Errorf("Failed to delete DC2: %v", err)
 	}
 
