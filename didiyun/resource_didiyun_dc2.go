@@ -21,19 +21,19 @@ func flattenDidiyunTags(tags []string) *schema.Set {
 	return flattentags
 }
 
-func flattenDidiyunEip(eip ds.Eip) map[string]string {
+func flattenDidiyunEip(eip ds.EipInfo) map[string]string {
 	result := map[string]string{
 		"ip_address": eip.Ip,
 	}
 	return result
 }
 
-func flattenDidiyunEbs(ebs []ds.Ebs) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, 1)
+func flattenDidiyunEbs(ebs []ds.EbsInfo) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0, len(ebs))
 	for _, v := range ebs {
 		r := make(map[string]interface{})
 		r["attr"] = v.Attr
-		r["name"] = v.Name
+		r["ebs_name"] = v.Name
 		r["size"] = v.Spec.Size
 		r["disktype"] = v.Spec.DiskType
 		r["tags"] = v.EbsTags
@@ -193,13 +193,13 @@ func resourceDidiyunDC2() *schema.Resource {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
-						"name": {
+						"ebs_name": {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
 						"size": {
 							Type:         schema.TypeInt,
-							Required:     true,
+							Optional:     true,
 							ValidateFunc: validation.IntBetween(20, 16384),
 						},
 						"disktype": {
@@ -246,7 +246,10 @@ func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("region_id", data.Region.Id)
 	d.Set("zone_id", data.Region.Zone.Id)
 	d.Set("eip", flattenDidiyunEip(data.Eip))
-	d.Set("ebs", flattenDidiyunEbs(data.Ebs))
+
+	if err := d.Set("ebs", flattenDidiyunEbs(data.Ebs)); err != nil {
+		return fmt.Errorf("[DEBUG] Error setting Dc2 Ebs - error: %#v", err)
+	}
 
 	if err := d.Set("tags", flattenDidiyunTags(data.Tags)); err != nil {
 		return fmt.Errorf("Failed to set `tags`: %v", err)
@@ -297,8 +300,9 @@ func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 
 	var ebs []dc2.EbsInput
 	if data, ok := d.GetOk("ebs"); ok {
-		d := data.([]map[string]interface{})
-		for _, e := range d {
+		d := data.([]interface{})
+		for _, each := range d {
+			e := each.(map[string]interface{})
 			t := dc2.EbsInput{}
 
 			if v, ok := e["count"]; ok {
@@ -349,47 +353,125 @@ func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 		Ebs:          ebs,
 	}
 
-	data, err := client.Dc2().Create(&req)
+	job, err := client.Dc2().Create(&req)
 
 	if err != nil {
 		return fmt.Errorf("Failed to create DC2: %v", err)
 	}
 
-	err = resource.Retry(2*time.Minute, func() *resource.RetryError {
-		jobs, err := client.Job().GetResult(&didi_job.ResultRequest{
-			RegionId: d.Get("region_id").(string),
-			JobUuids: data.Uuid,
-		})
-		if err != nil {
-			return resource.RetryableError(fmt.Errorf("Failed to get job: %v", err))
-		}
+	if err := WaitForJob(d.Get("region_id").(string), job.Uuid); err != nil {
+		return fmt.Errorf("Failed to create DC2: %v", err)
+	}
 
-		job := (*jobs)[0]
-
-		if job.Progress < 100 {
-			return resource.RetryableError(fmt.Errorf("Wait for job"))
-		}
-
-		if !job.Done {
-			return resource.RetryableError(fmt.Errorf("Wait for job"))
-		}
-
-		if !job.Success {
-			return resource.NonRetryableError(fmt.Errorf("Failed to execute job: %v", job.Result))
-		}
-
-		return nil
-	})
-
-	d.SetId(data.ResourceUuid)
+	d.SetId(job.ResourceUuid)
 
 	return resourceDidiyunDC2Read(d, meta)
 }
 
 func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
-	return nil
+	client := meta.(*CombinedConfig).Client()
+
+	id := d.Id()
+	region_id := d.Get("region_id").(string)
+
+	if d.HasChange("name") {
+		name := d.Get("name").(string)
+		req := dc.ChangeNameRequest{
+			RegionId: region_id,
+			Dc2: []dc.ChangeNameInput{
+				{
+					Dc2Uuid: id,
+					Name:    name,
+				},
+			},
+		}
+
+		job, err := client.Dc2().ChangeName(&req)
+
+		if err != nil {
+			return fmt.Errorf("Failed update name of Dc2: %v", id)
+		}
+
+		if err := WaitForJob(region_id, job.Uuid); err != nil {
+			return fmt.Errorf("Failed update name of Dc2: %v", id)
+		}
+	}
+
+	if d.HasChange("password") {
+		password := d.Get("password").(string)
+		req := dc.ChangePasswordRequest{
+			RegionId: region_id,
+			Dc2: []dc.ChangePasswordInput{
+				{
+					Dc2Uuid:  id,
+					Password: password,
+				},
+			},
+		}
+
+		job, err := client.Dc2().ChangePassword(&req)
+
+		if err != nil {
+			return fmt.Errorf("Failed to change password of dc2: %v", id)
+		}
+
+		if err := WaitForJob(region_id, job.Uuid); err != nil {
+			return fmt.Errorf("Failed to change password of dc2: %v", id)
+		}
+	}
+
+	if d.HasChange("dc2_model") {
+		model := d.Get("dc2_model").(string)
+		req := dc.ChangeSpecRequest{
+			RegionId: region_id,
+			Dc2: []dc.ChangePasswordInput{
+				{
+					Dc2Uuid:  id,
+					Dc2Model: model,
+				},
+			},
+		}
+
+		job, err := client.Dc2().ChangeSpec(&req)
+
+		if err != nil {
+			return fmt.Errorf("Failed to change model of dc2: %v", id)
+		}
+
+		if err := WaitForJob(region_id, job.Uuid); err != nil {
+			return fmt.Errorf("Failed to change model of dc2: %v", id)
+		}
+	}
+
+	return resourceDidiyunDC2Read(d, meta)
 }
 
 func resourceDidiyunDC2Delete(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*CombinedConfig).Client()
+
+	req := dc.DeleteRequest{
+		RegionId:  d.Get("region_id").(string),
+		DeleteEip: true,
+		DeleteEbs: true,
+		IgnoreSLB: true,
+		Dc2: []dc.DeleteInput{
+			dc.DeleteInput{
+				Dc2Uuid: d.Id(),
+			},
+		},
+	}
+
+	job, err := client.Dc2().Delete(&req)
+
+	if err != nil {
+		return fmt.Errorf("Failed to delete DC2: %v", err)
+	}
+
+	if err := WaitForJob(d.Get("region_id").(string), job.Uuid); err != nil {
+		return fmt.Errorf("Failed to delete DC2: %v", err)
+	}
+
+	d.SetId("")
+
 	return nil
 }
