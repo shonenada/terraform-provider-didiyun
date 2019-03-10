@@ -389,11 +389,11 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 		job, err := client.Dc2().ChangeName(&req)
 
 		if err != nil {
-			return fmt.Errorf("Failed update name of Dc2: %v", id)
+			return fmt.Errorf("Failed update name of Dc2: %v", err)
 		}
 
 		if err := WaitForJob(region_id, job.Uuid); err != nil {
-			return fmt.Errorf("Failed update name of Dc2: %v", id)
+			return fmt.Errorf("Failed update name of Dc2: %v")
 		}
 	}
 
