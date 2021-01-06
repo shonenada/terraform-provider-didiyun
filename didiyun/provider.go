@@ -15,6 +15,7 @@ func Provider() terraform.ResourceProvider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"didiyun_dc2": resourceDidiyunDC2(),
+			"didiyun_ebs": resourceDidiyunEBS(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
