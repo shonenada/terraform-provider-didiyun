@@ -13,14 +13,6 @@ import (
 	ds "github.com/shonenada/didiyun-go/schema"
 )
 
-func flattenDidiyunTags(tags []string) *schema.Set {
-	flattentags := schema.NewSet(schema.HashString, []interface{}{})
-	for _, v := range tags {
-		flattentags.Add(v)
-	}
-	return flattentags
-}
-
 func flattenDidiyunEip(eip ds.EipInfo) map[string]string {
 	result := map[string]string{
 		"ip_address": eip.Ip,
@@ -251,7 +243,7 @@ func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("[DEBUG] Error setting Dc2 Ebs - error: %#v", err)
 	}
 
-	if err := d.Set("tags", flattenDidiyunTags(data.Tags)); err != nil {
+	if err := d.Set("tags", FlattenDidiyunTags(data.Tags)); err != nil {
 		return fmt.Errorf("Failed to set `tags`: %v", err)
 	}
 
@@ -372,12 +364,12 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*CombinedConfig).Client()
 
 	id := d.Id()
-	region_id := d.Get("region_id").(string)
+	regionId := d.Get("region_id").(string)
 
 	if d.HasChange("name") {
 		name := d.Get("name").(string)
 		req := dc.ChangeNameRequest{
-			RegionId: region_id,
+			RegionId: regionId,
 			Dc2: []dc.ChangeNameInput{
 				{
 					Dc2Uuid: id,
@@ -392,15 +384,15 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("Failed update name of Dc2: %v", err)
 		}
 
-		if err := WaitForJob(region_id, job.Uuid); err != nil {
-			return fmt.Errorf("Failed update name of Dc2: %v")
+		if err := WaitForJob(regionId, job.Uuid); err != nil {
+			return fmt.Errorf("Failed update name of Dc2: %v", id)
 		}
 	}
 
 	if d.HasChange("password") {
 		password := d.Get("password").(string)
 		req := dc.ChangePasswordRequest{
-			RegionId: region_id,
+			RegionId: regionId,
 			Dc2: []dc.ChangePasswordInput{
 				{
 					Dc2Uuid:  id,
@@ -415,7 +407,7 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("Failed to change password of dc2: %v", id)
 		}
 
-		if err := WaitForJob(region_id, job.Uuid); err != nil {
+		if err := WaitForJob(regionId, job.Uuid); err != nil {
 			return fmt.Errorf("Failed to change password of dc2: %v", id)
 		}
 	}
@@ -423,7 +415,7 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("dc2_model") {
 		model := d.Get("dc2_model").(string)
 		req := dc.ChangeSpecRequest{
-			RegionId: region_id,
+			RegionId: regionId,
 			Dc2: []dc.ChangePasswordInput{
 				{
 					Dc2Uuid:  id,
@@ -438,7 +430,7 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("Failed to change model of dc2: %v", id)
 		}
 
-		if err := WaitForJob(region_id, job.Uuid); err != nil {
+		if err := WaitForJob(regionId, job.Uuid); err != nil {
 			return fmt.Errorf("Failed to change model of dc2: %v", id)
 		}
 	}
@@ -449,13 +441,13 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 func resourceDidiyunDC2Delete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*CombinedConfig).Client()
 
-	req := dc.DeleteRequest{
+	req := dc2.DeleteRequest{
 		RegionId:  d.Get("region_id").(string),
 		DeleteEip: true,
 		DeleteEbs: true,
 		IgnoreSLB: true,
-		Dc2: []dc.DeleteInput{
-			dc.DeleteInput{
+		Dc2: []dc2.DeleteInput{
+			dc2.DeleteInput{
 				Dc2Uuid: d.Id(),
 			},
 		},
