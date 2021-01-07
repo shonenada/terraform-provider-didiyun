@@ -1,23 +1,21 @@
 package didiyun
 
 import (
-	"fmt"
-	"time"
+	"context"
 
-	"github.com/hashicorp/terraform/helper/resource"
-	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/hashicorp/terraform/helper/validation"
-	didi_job "github.com/shonenada/didiyun-go/job"
-	ds "github.com/shonenada/didiyun-go/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	ddy "github.com/shonenada/didiyun-go"
 	vpc "github.com/shonenada/didiyun-go/vpc"
 )
 
 func resourceDidiyunVPC() *schema.Resource {
 	return &schema.Resource{
-		Read:   resourceDidiyunVPCRead,
-		Create: resourceDidiyunVPCCreate,
-		Update: resourceDidiyunVPCUpdate,
-		Delete: resourceDidiyunVPCDelete,
+		ReadContext:   resourceDidiyunVPCRead,
+		CreateContext: resourceDidiyunVPCCreate,
+		UpdateContext: resourceDidiyunVPCUpdate,
+		DeleteContext: resourceDidiyunVPCDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -49,17 +47,19 @@ func resourceDidiyunVPC() *schema.Resource {
 				Type:     schema.TypeList,
 				Optional: true,
 				Elem: &schema.Resource{
-					"name": {
-						Type:     schema.TypString,
-						Required: true,
-					},
-					"cidr": {
-						Type:     schema.TypString,
-						Required: true,
-					},
-					"zone_id": {
-						Type:     schema.TypString,
-						Required: true,
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"cidr": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"zone_id": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
 					},
 				},
 			},
@@ -67,8 +67,10 @@ func resourceDidiyunVPC() *schema.Resource {
 	}
 }
 
-func resourceDidiyunVPCRead(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunVPCRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	client := meta.(*ddy.Client)
 
 	uuid := d.Id()
 	regionId := d.Get("region_id").(string)
@@ -78,9 +80,9 @@ func resourceDidiyunVPCRead(d *schema.ResourceData, meta interface{}) error {
 		VpcUuid:  uuid,
 	}
 
-	data, err := client.VPC().Get(&req)
+	data, err := client.Vpc().Get(&req)
 	if err != nil {
-		return fmt.Error("Failed to read VPC: %v", err)
+		return diag.Errorf("Failed to read VPC: %v", err)
 	}
 
 	d.Set("name", data.Name)
@@ -88,14 +90,11 @@ func resourceDidiyunVPCRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("desc", data.Desc)
 	d.Set("is_default", data.IsDefault)
 
-	return nil
+	return diags
 }
 
-func resourceDidiyunVPCCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
-
-	uuid := d.Get()
-	regionId := d.Get("region_id").(string)
+func resourceDidiyunVPCCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*ddy.Client)
 
 	var subnets []vpc.SubnetInput
 	if data, ok := d.GetOk("subnet"); ok {
@@ -119,29 +118,29 @@ func resourceDidiyunVPCCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	req := vpc.CreateRequest{
-		RegionId: d.Get("region_id"),
-		Name:     d.Get("name"),
-		CIDR:     d.Get("cidr"),
+		RegionId: d.Get("region_id").(string),
+		Name:     d.Get("name").(string),
+		CIDR:     d.Get("cidr").(string),
 		Subnet:   subnets,
 	}
 
-	job, err := client.VPC().Create(&req)
+	job, err := client.Vpc().Create(&req)
 
 	if err != nil {
-		return fmt.Errorf("Failed to create VPC: %v", err)
+		return diag.Errorf("Failed to create VPC: %v", err)
 	}
 
-	if err := WaitForJob(d.Get("region_id").(string), job.Uuid); err != nil {
-		return fmt.Errorf("Failed to create VPC: %v", err)
+	if err := WaitForJob(client, d.Get("region_id").(string), job.Uuid); err != nil {
+		return diag.Errorf("Failed to create VPC: %v", err)
 	}
 
 	d.SetId(job.ResourceUuid)
 
-	return resourceDidiyunVPCRead(d, meta)
+	return resourceDidiyunVPCRead(ctx, d, meta)
 }
 
-func resourceDidiyunVPCUpdate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunVPCUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*ddy.Client)
 
 	id := d.Id()
 	region_id := d.Get("region_id").(string)
@@ -155,40 +154,42 @@ func resourceDidiyunVPCUpdate(d *schema.ResourceData, meta interface{}) error {
 				Name:    name,
 			}},
 		}
-		job, err := client.VPC().ChangeName(&req)
+		job, err := client.Vpc().ChangeName(&req)
 		if err != nil {
-			return fmt.Errorf("Failed update name of VPC: %v", err)
+			return diag.Errorf("Failed update name of VPC: %v", err)
 		}
 
-		if err := WaitForJob(region_id, job.Uuid); err != nil {
-			return fmt.Errorf("Failed update name of VPC: %v", err)
+		if err := WaitForJob(client, region_id, job.Uuid); err != nil {
+			return diag.Errorf("Failed update name of VPC: %v", err)
 		}
 	}
-	return resourceDidiyunVPCRead(d, meta)
+	return resourceDidiyunVPCRead(ctx, d, meta)
 }
 
-func resourceDidiyunVPCDelete(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunVPCDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+	client := meta.(*ddy.Client)
+
 	req := vpc.DeleteRequest{
 		RegionId: d.Get("region_id").(string),
 		Vpc: []vpc.DeleteInput{
 			{
-				vpcUuid: d.Id(),
+				VpcUuid: d.Id(),
 			},
 		},
 	}
 
-	job, err := client.VPC().Delete(&req)
+	job, err := client.Vpc().Delete(&req)
 
 	if err != nil {
-		return fmt.Errorf("Failed to delete VPC: %v", err)
+		return diag.Errorf("Failed to delete VPC: %v", err)
 	}
 
-	if err := WaitForJob(d.Get("region_id").(string), job.Uuid); err != nil {
-		return fmt.Errorf("Failed to delete VPC: %v", err)
+	if err := WaitForJob(client, d.Get("region_id").(string), job.Uuid); err != nil {
+		return diag.Errorf("Failed to delete VPC: %v", err)
 	}
 
 	d.SetId("")
 
-	return nil
+	return diags
 }

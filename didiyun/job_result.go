@@ -1,10 +1,19 @@
 package didiyun
 
+import (
+	"fmt"
+	"time"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	ddy "github.com/shonenada/didiyun-go"
+	job "github.com/shonenada/didiyun-go/job"
+)
+
 const TimeOut = 2 * time.Minute
 
-func WaitForJob(regionId string, jobUuid string) error {
+func WaitForJob(client *ddy.Client, regionId string, jobUuid string) error {
 	return resource.Retry(TimeOut, func() *resource.RetryError {
-		jobs, err := client.Job().GetResult(&didi_job.ResultRequest{
+		jobs, err := client.Job().GetResult(&job.ResultRequest{
 			RegionId: regionId,
 			JobUuids: jobUuid,
 		})
