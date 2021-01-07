@@ -27,7 +27,8 @@ func resourceDidiyunEBS() *schema.Resource {
 				ValidateFunc: validation.NoZeroValues,
 			},
 			"zone_id": {
-				Type: schema.TypeString,
+				Type:     schema.TypeString,
+				Required: true,
 			},
 			"auto_continue": {
 				Type:     schema.TypeBool,
@@ -37,7 +38,7 @@ func resourceDidiyunEBS() *schema.Resource {
 				Type:     schema.TypeInt,
 				Optional: true,
 			},
-			"count": {
+			"ebs_count": {
 				Type:     schema.TypeInt,
 				Optional: true,
 			},
@@ -50,10 +51,12 @@ func resourceDidiyunEBS() *schema.Resource {
 				Optional: true,
 			},
 			"size": {
-				Type: schema.TypeInt,
+				Type:     schema.TypeInt,
+				Required: true,
 			},
 			"disk_type": {
-				Type: schema.TypeString,
+				Type:     schema.TypeString,
+				Required: true,
 			},
 			"dc2_uuid": {
 				Type:     schema.TypeString,
@@ -125,7 +128,7 @@ func resourceDidiyunEbsCreate(ctx context.Context, d *schema.ResourceData, meta 
 		DiskType:     d.Get("disk_type").(string),
 		AutoContinue: d.Get("auto_continue").(bool),
 		PayPeriod:    d.Get("pay_period").(int),
-		Count:        d.Get("dc2_count").(int),
+		Count:        d.Get("ebs_count").(int),
 		CouponId:     d.Get("coupon_Id").(string),
 		Dc2Uuid:      d.Get("dc2_uuid").(string),
 		SnapUuid:     d.Get("snap_uuid").(string),
