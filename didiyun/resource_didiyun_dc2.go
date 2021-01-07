@@ -34,6 +34,61 @@ func flattenDidiyunEbs(ebs []ds.EbsInfo) []map[string]interface{} {
 	return result
 }
 
+func expandDc2Eip(m *schema.Set) dc2.EipInput {
+	l := m.List()
+	d := l[0].(map[string]interface{})
+
+	eip := dc2.EipInput{}
+
+	if v, ok := d["band_width"]; ok {
+		eip.BandWidth, _ = v.(int)
+	}
+
+	if v, ok := d["charge_with_flow"]; ok {
+		eip.ChargeWithFlow = v.(bool)
+	}
+
+	if v, ok := d["tags"]; ok {
+		rawTags := v.(*schema.Set).List()
+		tags := make([]string, 0)
+		for _, e := range rawTags {
+			tags = append(tags, e.(string))
+		}
+		eip.EipTags = tags
+	}
+
+	return eip
+}
+
+func expandDc2Ebs(m *schema.Set) []dc2.EbsInput {
+	l := m.List()
+	rv := make([]dc2.EbsInput, 0)
+	for _, raw := range l {
+		d := raw.(map[string]interface{})
+		e := dc2.EbsInput{}
+		if v, ok := d["count"]; ok {
+			e.Count, _ = strconv.Atoi(v.(string))
+		}
+		if v, ok := d["name"]; ok {
+			e.Name = v.(string)
+		}
+		if v, ok := d["size"]; ok {
+			e.Size = v.(int64)
+		}
+		if v, ok := d["disktype"]; ok {
+			e.DiskType = v.(string)
+		}
+		if v, ok := d["snap_uuid"]; ok {
+			e.SnapUuid = v.(string)
+		}
+		if v, ok := d["tags"]; ok {
+			e.EbsTags = v.([]string)
+		}
+		rv = append(rv, e)
+	}
+	return rv
+}
+
 func resourceDidiyunDC2() *schema.Resource {
 	return &schema.Resource{
 		ReadContext:   resourceDidiyunDC2Read,
@@ -143,7 +198,7 @@ func resourceDidiyunDC2() *schema.Resource {
 				Computed: true,
 			},
 			"eip": {
-				Type:     schema.TypeMap,
+				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -171,7 +226,7 @@ func resourceDidiyunDC2() *schema.Resource {
 				},
 			},
 			"ebs": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -275,56 +330,8 @@ func resourceDidiyunDC2Create(ctx context.Context, d *schema.ResourceData, meta 
 		}
 	}
 
-	var eip dc2.EipInput
-	if data, ok := d.GetOk("eip"); ok {
-		d := data.(map[string]interface{})
-		if v, ok := d["band_width"]; ok {
-			eip.BandWidth, _ = strconv.Atoi(v.(string))
-		}
-
-		if v, ok := d["charge_with_flow"]; ok {
-			eip.ChargeWithFlow = v.(bool)
-		}
-
-		if v, ok := d["tags"]; ok {
-			eip.EipTags = v.([]string)
-		}
-	}
-
-	var ebs []dc2.EbsInput
-	if data, ok := d.GetOk("ebs"); ok {
-		d := data.([]interface{})
-		for _, each := range d {
-			e := each.(map[string]interface{})
-			t := dc2.EbsInput{}
-
-			if v, ok := e["count"]; ok {
-				t.Count, _ = strconv.Atoi(v.(string))
-			}
-
-			if v, ok := e["name"]; ok {
-				t.Name = v.(string)
-			}
-
-			if v, ok := e["size"]; ok {
-				t.Size = v.(int64)
-			}
-
-			if v, ok := e["disktype"]; ok {
-				t.DiskType = v.(string)
-			}
-
-			if v, ok := e["snap_uuid"]; ok {
-				t.SnapUuid = v.(string)
-			}
-
-			if v, ok := e["tags"]; ok {
-				t.EbsTags = v.([]string)
-			}
-
-			ebs = append(ebs, t)
-		}
-	}
+	eip := expandDc2Eip(d.Get("eip").(*schema.Set))
+	ebs := expandDc2Ebs(d.Get("ebs").(*schema.Set))
 
 	req := dc2.CreateRequest{
 		RegionId:     d.Get("region_id").(string),
