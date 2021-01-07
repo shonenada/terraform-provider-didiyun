@@ -35,8 +35,8 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 		c := ddy.Client{
 			AccessToken: accessToken,
 		}
-		return c, diags
+		return &c, diags
 	}
 
-	return nil, diag.Errorf("Failed to create didiyun client.")
+	return nil, diag.Errorf("Failed to create didiyun client. Access token cannot be empty.")
 }
