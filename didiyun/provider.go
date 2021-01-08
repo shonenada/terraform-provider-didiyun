@@ -18,10 +18,21 @@ func Provider() *schema.Provider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"didiyun_dc2": resourceDidiyunDC2(),
-			"didiyun_ebs": resourceDidiyunEBS(),
+			"didiyun_dc2":    resourceDidiyunDC2(),
+			"didiyun_ebs":    resourceDidiyunEBS(),
+			"didiyun_sshkey": resourceDidiyunSSHKey(),
+			"didiyun_vpc":    resourceDidiyunVPC(),
 		},
-		DataSourcesMap:       map[string]*schema.Resource{},
+		DataSourcesMap: map[string]*schema.Resource{
+			"didiyun_dc2_regions":  dataSourceDidiyunDc2Regions(),
+			"didiyun_ebs_regions":  dataSourceDidiyunEbsRegions(),
+			"didiyun_eip_regions":  dataSourceDidiyunEipRegions(),
+			"didiyun_sg_regions":   dataSourceDidiyunSgRegions(),
+			"didiyun_snap_regions": dataSourceDidiyunSnapRegions(),
+			"didiyun_vpc_regions":  dataSourceDidiyunVpcRegions(),
+			"didiyun_dc2_image":    dataSourceDidiyunDc2Image(),
+			"didiyun_dc2_images":   dataSourceDidiyunDc2Images(),
+		},
 		ConfigureContextFunc: providerConfigure,
 	}
 }

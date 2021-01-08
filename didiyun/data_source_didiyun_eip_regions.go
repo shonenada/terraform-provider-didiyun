@@ -5,13 +5,12 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	ddy "github.com/shonenada/didiyun-go"
 )
 
-func dataSourceDidiyunVpcRegion() *schema.Resource {
+func dataSourceDidiyunEipRegions() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceDidiyunVpcRegionRead,
+		ReadContext: dataSourceDidiyunEipRegionsRead,
 		Schema: map[string]*schema.Schema{
 			"regions": {
 				Type:     schema.TypeSet,
@@ -19,19 +18,16 @@ func dataSourceDidiyunVpcRegion() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"area_name": {
-							Type:         schema.TypeString,
-							Computed:     true,
-							ValidateFunc: validation.NoZeroValues,
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 						"id": {
-							Type:         schema.TypeString,
-							Computed:     true,
-							ValidateFunc: validation.NoZeroValues,
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 						"name": {
-							Type:         schema.TypeString,
-							Computed:     true,
-							ValidateFunc: validation.NoZeroValues,
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 						"zone": {
 							Type:     schema.TypeList,
@@ -56,11 +52,11 @@ func dataSourceDidiyunVpcRegion() *schema.Resource {
 	}
 }
 
-func dataSourceDidiyunVpcRegionRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceDidiyunEipRegionsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	client := meta.(*ddy.Client)
 
-	data, err := client.Region().ListVpcRegions()
+	data, err := client.Region().ListEipRegions()
 	if err != nil {
 		return diag.FromErr(err)
 	}

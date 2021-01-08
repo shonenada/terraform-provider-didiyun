@@ -2,16 +2,16 @@ package didiyun
 
 import (
 	"context"
+	"log"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	ddy "github.com/shonenada/didiyun-go"
 )
 
-func dataSourceDidiyunEipRegion() *schema.Resource {
+func dataSourceDidiyunDc2Regions() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceDidiyunEipRegionRead,
+		ReadContext: dataSourceDidiyunDc2RegionsRead,
 		Schema: map[string]*schema.Schema{
 			"regions": {
 				Type:     schema.TypeSet,
@@ -19,19 +19,16 @@ func dataSourceDidiyunEipRegion() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"area_name": {
-							Type:         schema.TypeString,
-							Computed:     true,
-							ValidateFunc: validation.NoZeroValues,
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 						"id": {
-							Type:         schema.TypeString,
-							Computed:     true,
-							ValidateFunc: validation.NoZeroValues,
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 						"name": {
-							Type:         schema.TypeString,
-							Computed:     true,
-							ValidateFunc: validation.NoZeroValues,
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 						"zone": {
 							Type:     schema.TypeList,
@@ -56,32 +53,38 @@ func dataSourceDidiyunEipRegion() *schema.Resource {
 	}
 }
 
-func dataSourceDidiyunEipRegionRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceDidiyunDc2RegionsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	client := meta.(*ddy.Client)
 
-	data, err := client.Region().ListEipRegions()
+	data, err := client.Region().ListDc2Regions()
+	log.Printf("[DEBUG] regions: %v", *data)
+
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	var regions []map[string]interface{}
+	regions := make([]map[string]interface{}, 0, len(*data))
+
 	for _, r := range *data {
 		e := make(map[string]interface{})
 		e["area_name"] = r.AreaName
 		e["id"] = r.Id
 		e["name"] = r.Name
-		var zones []map[string]interface{}
+
+		zones := make([]map[string]interface{}, 0, len(r.Zone))
 		for _, ez := range r.Zone {
 			z := make(map[string]interface{})
 			z["id"] = ez.Id
 			z["name"] = ez.Name
 			zones = append(zones, z)
 		}
-		e["zome"] = zones
+		e["zone"] = zones
+
 		regions = append(regions, e)
 	}
 
+	d.SetId("regions")
 	d.Set("regions", regions)
 
 	return diags
