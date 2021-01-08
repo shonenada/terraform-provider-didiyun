@@ -29,9 +29,8 @@ func dataSourceDidiyunDc2Region() *schema.Resource {
 							ValidateFunc: validation.NoZeroValues,
 						},
 						"name": {
-							Type:     schema.TypeString,
-							Computed: true,
-
+							Type:         schema.TypeString,
+							Computed:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
 						"zone": {
