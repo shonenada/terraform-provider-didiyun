@@ -2,7 +2,6 @@ package didiyun
 
 import (
 	"context"
-	"log"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -58,7 +57,6 @@ func dataSourceDidiyunDc2RegionsRead(ctx context.Context, d *schema.ResourceData
 	client := meta.(*ddy.Client)
 
 	data, err := client.Region().ListDc2Regions()
-	log.Printf("[DEBUG] regions: %v", *data)
 
 	if err != nil {
 		return diag.FromErr(err)
