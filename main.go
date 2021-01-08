@@ -1,11 +1,16 @@
 package main
 
 import (
-	"github.com/hashicorp/terraform/plugin"
-	"github.com/terraform-providers/terraform-provider-didiyun/didiyun"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
+
+	"terraform-provider-didiyun/didiyun"
 )
 
 func main() {
 	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: didiyun.Provider})
+		ProviderFunc: func() *schema.Provider {
+			return didiyun.Provider()
+		},
+	})
 }
