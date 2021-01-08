@@ -173,6 +173,7 @@ func dataSourceDidiyunDc2ImageRead(ctx context.Context, d *schema.ResourceData, 
 
 	img := rv[0].(ddyds.ImageInfo)
 
+	d.SetId(img.Uuid)
 	d.Set("uuid", img.Uuid)
 	d.Set("name", img.Name)
 	d.Set("description", img.Description)

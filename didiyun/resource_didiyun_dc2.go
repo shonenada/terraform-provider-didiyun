@@ -12,9 +12,12 @@ import (
 	ds "github.com/shonenada/didiyun-go/schema"
 )
 
-func flattenDidiyunEip(eip ds.EipInfo) map[string]string {
-	result := map[string]string{
-		"ip_address": eip.Ip,
+func flattenDidiyunEip(eip ds.EipInfo) []map[string]interface{} {
+	result := []map[string]interface{}{
+		{
+			"ip_address": eip.Ip,
+			"uuid":       eip.Uuid,
+		},
 	}
 	return result
 }
@@ -217,6 +220,10 @@ func resourceDidiyunDC2() *schema.Resource {
 							Elem: &schema.Schema{
 								Type: schema.TypeString,
 							},
+						},
+						"uuid": {
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 						"ip_address": {
 							Type:     schema.TypeString,
