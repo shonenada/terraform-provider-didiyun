@@ -1,15 +1,14 @@
 package didiyun
 
 import (
-	"fmt"
+	"context"
 	"strconv"
-	"time"
 
-	"github.com/hashicorp/terraform/helper/resource"
-	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/hashicorp/terraform/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	ddy "github.com/shonenada/didiyun-go"
 	dc2 "github.com/shonenada/didiyun-go/dc2"
-	didi_job "github.com/shonenada/didiyun-go/job"
 	ds "github.com/shonenada/didiyun-go/schema"
 )
 
@@ -35,12 +34,67 @@ func flattenDidiyunEbs(ebs []ds.EbsInfo) []map[string]interface{} {
 	return result
 }
 
+func expandDc2Eip(m *schema.Set) dc2.EipInput {
+	l := m.List()
+	d := l[0].(map[string]interface{})
+
+	eip := dc2.EipInput{}
+
+	if v, ok := d["band_width"]; ok {
+		eip.BandWidth, _ = v.(int)
+	}
+
+	if v, ok := d["charge_with_flow"]; ok {
+		eip.ChargeWithFlow = v.(bool)
+	}
+
+	if v, ok := d["tags"]; ok {
+		rawTags := v.(*schema.Set).List()
+		tags := make([]string, 0)
+		for _, e := range rawTags {
+			tags = append(tags, e.(string))
+		}
+		eip.EipTags = tags
+	}
+
+	return eip
+}
+
+func expandDc2Ebs(m *schema.Set) []dc2.EbsInput {
+	l := m.List()
+	rv := make([]dc2.EbsInput, 0)
+	for _, raw := range l {
+		d := raw.(map[string]interface{})
+		e := dc2.EbsInput{}
+		if v, ok := d["count"]; ok {
+			e.Count, _ = strconv.Atoi(v.(string))
+		}
+		if v, ok := d["name"]; ok {
+			e.Name = v.(string)
+		}
+		if v, ok := d["size"]; ok {
+			e.Size = v.(int64)
+		}
+		if v, ok := d["disktype"]; ok {
+			e.DiskType = v.(string)
+		}
+		if v, ok := d["snap_uuid"]; ok {
+			e.SnapUuid = v.(string)
+		}
+		if v, ok := d["tags"]; ok {
+			e.EbsTags = v.([]string)
+		}
+		rv = append(rv, e)
+	}
+	return rv
+}
+
 func resourceDidiyunDC2() *schema.Resource {
 	return &schema.Resource{
-		Read:   resourceDidiyunDC2Read,
-		Create: resourceDidiyunDC2Create,
-		Update: resourceDidiyunDC2Update,
-		Delete: resourceDidiyunDC2Delete,
+		ReadContext:   resourceDidiyunDC2Read,
+		CreateContext: resourceDidiyunDC2Create,
+		UpdateContext: resourceDidiyunDC2Update,
+		DeleteContext: resourceDidiyunDC2Delete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -144,7 +198,7 @@ func resourceDidiyunDC2() *schema.Resource {
 				Computed: true,
 			},
 			"eip": {
-				Type:     schema.TypeMap,
+				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -172,7 +226,7 @@ func resourceDidiyunDC2() *schema.Resource {
 				},
 			},
 			"ebs": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -216,8 +270,9 @@ func resourceDidiyunDC2() *schema.Resource {
 	}
 }
 
-func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunDC2Read(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+	client := meta.(*ddy.Client)
 
 	uuid := d.Id()
 	regionId := d.Get("region_id").(string)
@@ -229,7 +284,7 @@ func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
 
 	data, err := client.Dc2().Get(&req)
 	if err != nil {
-		return fmt.Errorf("Failed to read Dc2: %v", err)
+		return diag.Errorf("Failed to read Dc2: %v", err)
 	}
 
 	d.Set("name", data.Name)
@@ -240,20 +295,21 @@ func resourceDidiyunDC2Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("eip", flattenDidiyunEip(data.Eip))
 
 	if err := d.Set("ebs", flattenDidiyunEbs(data.Ebs)); err != nil {
-		return fmt.Errorf("[DEBUG] Error setting Dc2 Ebs - error: %#v", err)
+		return diag.Errorf("[DEBUG] Error setting Dc2 Ebs - error: %#v", err)
 	}
 
 	if err := d.Set("tags", FlattenDidiyunTags(data.Tags)); err != nil {
-		return fmt.Errorf("Failed to set `tags`: %v", err)
+		return diag.Errorf("Failed to set `tags`: %v", err)
 	}
 
-	return nil
+	return diags
 }
 
-func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunDC2Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*ddy.Client)
 
 	var sshkeys []string
+
 	if v, ok := d.GetOk("sshkeys"); ok {
 		for _, k := range v.(*schema.Set).List() {
 			sshkeys = append(sshkeys, k.(string))
@@ -274,56 +330,8 @@ func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	var eip dc2.EipInput
-	if data, ok := d.GetOk("eip"); ok {
-		d := data.(map[string]interface{})
-		if v, ok := d["band_width"]; ok {
-			eip.BandWidth, _ = strconv.Atoi(v.(string))
-		}
-
-		if v, ok := d["charge_with_flow"]; ok {
-			eip.ChargeWithFlow = v.(bool)
-		}
-
-		if v, ok := d["tags"]; ok {
-			eip.EipTags = v.([]string)
-		}
-	}
-
-	var ebs []dc2.EbsInput
-	if data, ok := d.GetOk("ebs"); ok {
-		d := data.([]interface{})
-		for _, each := range d {
-			e := each.(map[string]interface{})
-			t := dc2.EbsInput{}
-
-			if v, ok := e["count"]; ok {
-				t.Count, _ = strconv.Atoi(v.(string))
-			}
-
-			if v, ok := e["name"]; ok {
-				t.Name = v.(string)
-			}
-
-			if v, ok := e["size"]; ok {
-				t.Size = v.(int64)
-			}
-
-			if v, ok := e["disktype"]; ok {
-				t.DiskType = v.(string)
-			}
-
-			if v, ok := e["snap_uuid"]; ok {
-				t.SnapUuid = v.(string)
-			}
-
-			if v, ok := e["tags"]; ok {
-				t.EbsTags = v.([]string)
-			}
-
-			ebs = append(ebs, t)
-		}
-	}
+	eip := expandDc2Eip(d.Get("eip").(*schema.Set))
+	ebs := expandDc2Ebs(d.Get("ebs").(*schema.Set))
 
 	req := dc2.CreateRequest{
 		RegionId:     d.Get("region_id").(string),
@@ -348,29 +356,30 @@ func resourceDidiyunDC2Create(d *schema.ResourceData, meta interface{}) error {
 	job, err := client.Dc2().Create(&req)
 
 	if err != nil {
-		return fmt.Errorf("Failed to create DC2: %v", err)
+		return diag.Errorf("Failed to create DC2: %v", err)
 	}
 
-	if err := WaitForJob(d.Get("region_id").(string), job.Uuid); err != nil {
-		return fmt.Errorf("Failed to create DC2: %v", err)
+	if err := WaitForJob(client, d.Get("region_id").(string), job.Uuid); err != nil {
+		return diag.Errorf("Failed to create DC2: %v", err)
 	}
 
 	d.SetId(job.ResourceUuid)
 
-	return resourceDidiyunDC2Read(d, meta)
+	return resourceDidiyunDC2Read(ctx, d, meta)
 }
 
-func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunDC2Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+
+	client := meta.(*ddy.Client)
 
 	id := d.Id()
 	regionId := d.Get("region_id").(string)
 
 	if d.HasChange("name") {
 		name := d.Get("name").(string)
-		req := dc.ChangeNameRequest{
+		req := dc2.ChangeNameRequest{
 			RegionId: regionId,
-			Dc2: []dc.ChangeNameInput{
+			Dc2: []dc2.ChangeNameInput{
 				{
 					Dc2Uuid: id,
 					Name:    name,
@@ -381,19 +390,19 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 		job, err := client.Dc2().ChangeName(&req)
 
 		if err != nil {
-			return fmt.Errorf("Failed update name of Dc2: %v", err)
+			return diag.Errorf("Failed update name of Dc2: %v", err)
 		}
 
-		if err := WaitForJob(regionId, job.Uuid); err != nil {
-			return fmt.Errorf("Failed update name of Dc2: %v", id)
+		if err := WaitForJob(client, regionId, job.Uuid); err != nil {
+			return diag.Errorf("Failed update name of Dc2: %v", id)
 		}
 	}
 
 	if d.HasChange("password") {
 		password := d.Get("password").(string)
-		req := dc.ChangePasswordRequest{
+		req := dc2.ChangePasswordRequest{
 			RegionId: regionId,
-			Dc2: []dc.ChangePasswordInput{
+			Dc2: []dc2.ChangePasswordInput{
 				{
 					Dc2Uuid:  id,
 					Password: password,
@@ -404,19 +413,19 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 		job, err := client.Dc2().ChangePassword(&req)
 
 		if err != nil {
-			return fmt.Errorf("Failed to change password of dc2: %v", id)
+			return diag.Errorf("Failed to change password of dc2: %v", id)
 		}
 
-		if err := WaitForJob(regionId, job.Uuid); err != nil {
-			return fmt.Errorf("Failed to change password of dc2: %v", id)
+		if err := WaitForJob(client, regionId, job.Uuid); err != nil {
+			return diag.Errorf("Failed to change password of dc2: %v", id)
 		}
 	}
 
 	if d.HasChange("dc2_model") {
 		model := d.Get("dc2_model").(string)
-		req := dc.ChangeSpecRequest{
+		req := dc2.ChangeSpecRequest{
 			RegionId: regionId,
-			Dc2: []dc.ChangePasswordInput{
+			Dc2: []dc2.ChangeSpecInput{
 				{
 					Dc2Uuid:  id,
 					Dc2Model: model,
@@ -427,19 +436,20 @@ func resourceDidiyunDC2Update(d *schema.ResourceData, meta interface{}) error {
 		job, err := client.Dc2().ChangeSpec(&req)
 
 		if err != nil {
-			return fmt.Errorf("Failed to change model of dc2: %v", id)
+			return diag.Errorf("Failed to change model of dc2: %v", id)
 		}
 
-		if err := WaitForJob(regionId, job.Uuid); err != nil {
-			return fmt.Errorf("Failed to change model of dc2: %v", id)
+		if err := WaitForJob(client, regionId, job.Uuid); err != nil {
+			return diag.Errorf("Failed to change model of dc2: %v", id)
 		}
 	}
 
-	return resourceDidiyunDC2Read(d, meta)
+	return resourceDidiyunDC2Read(ctx, d, meta)
 }
 
-func resourceDidiyunDC2Delete(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunDC2Delete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+	client := meta.(*ddy.Client)
 
 	req := dc2.DeleteRequest{
 		RegionId:  d.Get("region_id").(string),
@@ -456,14 +466,14 @@ func resourceDidiyunDC2Delete(d *schema.ResourceData, meta interface{}) error {
 	job, err := client.Dc2().Delete(&req)
 
 	if err != nil {
-		return fmt.Errorf("Failed to delete DC2: %v", err)
+		return diag.Errorf("Failed to delete DC2: %v", err)
 	}
 
-	if err := WaitForJob(d.Get("region_id").(string), job.Uuid); err != nil {
-		return fmt.Errorf("Failed to delete DC2: %v", err)
+	if err := WaitForJob(client, d.Get("region_id").(string), job.Uuid); err != nil {
+		return diag.Errorf("Failed to delete DC2: %v", err)
 	}
 
 	d.SetId("")
 
-	return nil
+	return diags
 }

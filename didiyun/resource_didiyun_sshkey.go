@@ -1,19 +1,21 @@
 package didiyun
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/hashicorp/terraform/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	ddy "github.com/shonenada/didiyun-go"
 	sshkey "github.com/shonenada/didiyun-go/sshkey"
 )
 
 func resourceDidiyunSSHKey() *schema.Resource {
 	return &schema.Resource{
-		Read:   resourceDidiyunSSHKeyRead,
-		Create: resourceDidiyunSSHKeyCreate,
-		Update: resourceDidiyunSSHKeyUpdate,
-		Delete: resourceDidiyunSSHKeyDelete,
+		ReadContext:   resourceDidiyunSSHKeyRead,
+		CreateContext: resourceDidiyunSSHKeyCreate,
+		UpdateContext: resourceDidiyunSSHKeyUpdate,
+		DeleteContext: resourceDidiyunSSHKeyDelete,
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -37,12 +39,13 @@ func resourceDidiyunSSHKey() *schema.Resource {
 
 // Didiyun does not supported get sshkey by id,
 // so we need list all keys, then find the key by id.
-func resourceDidiyunSSHKeyRead(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunSSHKeyRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+	client := meta.(*ddy.Client)
 	keys, err := client.SSHKey().List()
 	if err != nil {
 		d.SetId("")
-		return fmt.Errorf("Failed to request SSH Keys: %v", err)
+		return diag.Errorf("Failed to request SSH Keys: %v", err)
 	}
 
 	for _, ele := range *keys {
@@ -50,17 +53,16 @@ func resourceDidiyunSSHKeyRead(d *schema.ResourceData, meta interface{}) error {
 			d.Set("name", ele.Name)
 			d.Set("key", ele.Key)
 			d.Set("fingerprint", ele.Fingerprint)
-			return nil
+			return diags
 		}
 	}
 
-	return fmt.Errorf("Failed to find SSH Keys: %v", err)
 	d.SetId("")
-	return nil
+	return diag.Errorf("Failed to find SSH Keys: %v", err)
 }
 
-func resourceDidiyunSSHKeyCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunSSHKeyCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*ddy.Client)
 
 	req := sshkey.CreateRequest{
 		Name: d.Get("name").(string),
@@ -69,20 +71,22 @@ func resourceDidiyunSSHKeyCreate(d *schema.ResourceData, meta interface{}) error
 
 	data, err := client.SSHKey().Create(&req)
 	if err != nil {
-		return fmt.Errorf("Failed to create SSH Key: %v", err)
+		return diag.Errorf("Failed to create SSH Key: %v", err)
 	}
 
 	d.SetId(data.PubKeyUuid)
 
-	return resourceDidiyunSSHKeyRead(d, meta)
+	return resourceDidiyunSSHKeyRead(ctx, d, meta)
 }
 
-func resourceDidiyunSSHKeyUpdate(d *schema.ResourceData, meta interface{}) error {
-	return nil
+func resourceDidiyunSSHKeyUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+	return diags
 }
 
-func resourceDidiyunSSHKeyDelete(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*CombinedConfig).Client()
+func resourceDidiyunSSHKeyDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+	client := meta.(*ddy.Client)
 
 	req := sshkey.DeleteRequest{
 		PubKeyUuid: d.Id(),
@@ -91,9 +95,9 @@ func resourceDidiyunSSHKeyDelete(d *schema.ResourceData, meta interface{}) error
 	_, err := client.SSHKey().Delete(&req)
 
 	if err != nil {
-		return fmt.Errorf("Failed to delete SSH Key: %v", err)
+		return diag.Errorf("Failed to delete SSH Key: %v", err)
 	}
 
 	d.SetId("")
-	return nil
+	return diags
 }
