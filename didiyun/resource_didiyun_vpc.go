@@ -37,7 +37,7 @@ func resourceDidiyunVPC() *schema.Resource {
 			},
 			"desc": {
 				Type:     schema.TypeString,
-				Optional: false,
+				Optional: true,
 			},
 			"cidr": {
 				Type:     schema.TypeString,
