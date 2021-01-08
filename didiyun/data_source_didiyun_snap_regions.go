@@ -61,23 +61,24 @@ func dataSourceDidiyunSnapRegionsRead(ctx context.Context, d *schema.ResourceDat
 		return diag.FromErr(err)
 	}
 
-	var regions []map[string]interface{}
+	regions := make([]map[string]interface{}, 0, len(*data))
 	for _, r := range *data {
 		e := make(map[string]interface{})
 		e["area_name"] = r.AreaName
 		e["id"] = r.Id
 		e["name"] = r.Name
-		var zones []map[string]interface{}
+		zones := make([]map[string]interface{}, 0, len(r.Zone))
 		for _, ez := range r.Zone {
 			z := make(map[string]interface{})
 			z["id"] = ez.Id
 			z["name"] = ez.Name
 			zones = append(zones, z)
 		}
-		e["zome"] = zones
+		e["zone"] = zones
 		regions = append(regions, e)
 	}
 
+	d.SetId("snap_regions")
 	d.Set("regions", regions)
 
 	return diags

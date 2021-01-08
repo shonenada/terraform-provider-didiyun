@@ -63,13 +63,11 @@ func dataSourceDidiyunDc2RegionsRead(ctx context.Context, d *schema.ResourceData
 	}
 
 	regions := make([]map[string]interface{}, 0, len(*data))
-
 	for _, r := range *data {
 		e := make(map[string]interface{})
 		e["area_name"] = r.AreaName
 		e["id"] = r.Id
 		e["name"] = r.Name
-
 		zones := make([]map[string]interface{}, 0, len(r.Zone))
 		for _, ez := range r.Zone {
 			z := make(map[string]interface{})
@@ -82,7 +80,7 @@ func dataSourceDidiyunDc2RegionsRead(ctx context.Context, d *schema.ResourceData
 		regions = append(regions, e)
 	}
 
-	d.SetId("regions")
+	d.SetId("dc2_regions")
 	d.Set("regions", regions)
 
 	return diags
