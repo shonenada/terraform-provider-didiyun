@@ -30,8 +30,11 @@ func Provider() *schema.Provider {
 			"didiyun_sg_regions":   dataSourceDidiyunSgRegions(),
 			"didiyun_snap_regions": dataSourceDidiyunSnapRegions(),
 			"didiyun_vpc_regions":  dataSourceDidiyunVpcRegions(),
+
 			"didiyun_dc2_image":    dataSourceDidiyunDc2Image(),
 			"didiyun_dc2_images":   dataSourceDidiyunDc2Images(),
+
+			"didiyun_eips":  dataSourceDidiyunEips(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
