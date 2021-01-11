@@ -6,117 +6,63 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	ddy "github.com/shonenada/didiyun-go"
+	eip "github.com/shonenada/didiyun-go/eip"
+	ds "github.com/shonenada/didiyun-go/schema"
 )
 
 func dataSourceDidiyunEips() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceDidiyunEipsRead,
 		Schema: map[string]*schema.Schema{
+			"region_id": {
+				Type:     schema.TypeString,
+				Required: true,
+			},
 			"eips": {
-				Type: schema.TypeSet,
+				Type:     schema.TypeList,
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"charge": {
-							Type: schem.String,
-							Computed: true,
-						},
 						"id": {
-							Type: schem.String,
+							Type:     schema.TypeString,
 							Computed: true,
 						},
 						"uuid": {
-							Type: schem.String,
+							Type:     schema.TypeString,
 							Computed: true,
 						},
 						"ip": {
-							Type: schem.String,
+							Type:     schema.TypeString,
 							Computed: true,
 						},
 						"state": {
-							Type: schem.String,
+							Type:     schema.TypeString,
 							Computed: true,
 						},
 						"status": {
-							Type: schem.String,
+							Type:     schema.TypeString,
 							Computed: true,
-						},
-						"spec": {
-							Type: schema.TypSet,
-							Computed: true,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"name": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-									"uuid": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-									"type": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-									"state": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-									"bandwidth": {
-										Type: schema.TypeInt,
-										Computed: true,
-									},
-									"charge_type": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-									"description": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-									"inbound_bandwidth": {
-										Type: schema.TypeInt,
-										Computed: true,
-									},
-									"outbound_bandwidth": {
-										Type: schema.TypeInt,
-										Computed: true,
-									},
-									"offering_uuid": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-									"peer_offering_uuid": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-								}
-							},
 						},
 						"region": {
-							Type: schema.TypSet,
+							Type:     schema.TypeSet,
 							Computed: true,
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"id": {
-										Type: schema.TypeString,
-										Computed: true,
-									},
-									"area_name": {
-										Type: schema.TypeString,
+										Type:     schema.TypeString,
 										Computed: true,
 									},
 									"name": {
-										Type: schema.TypeString,
+										Type:     schema.TypeString,
 										Computed: true,
 									},
-								}
+								},
 							},
 						},
 						"tags": {
-							Type: schema.TypSet,
+							Type:     schema.TypeSet,
 							Computed: true,
-							Elem: &schema.Schema{Type: schema.TypeString},
+							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
 					},
 				},
@@ -125,13 +71,55 @@ func dataSourceDidiyunEips() *schema.Resource {
 	}
 }
 
+func flattenDidiyunEips(eips []ds.EipInfo) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0, len(eips))
+
+	for _, eip := range eips {
+		r := make(map[string]interface{})
+		r["uuid"] = eip.Uuid
+		r["id"] = eip.Id
+		r["ip"] = eip.Ip
+		r["state"] = eip.State
+		r["status"] = eip.Status
+
+		region := map[string]interface{}{}
+		region["id"] = eip.Region.Id
+		region["name"] = eip.Region.Name
+
+		regions := make([]map[string]interface{}, 0, 1)
+		regions = append(regions, region)
+		r["region"] = regions
+
+		tags := make([]string, 0, len(eip.Tags))
+		for _, e := range eip.Tags {
+			tags = append(tags, e)
+		}
+		r["tags"] = tags
+
+		result = append(result, r)
+	}
+
+	return result
+}
+
 func dataSourceDidiyunEipsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	client := meta.(*ddy.Client)
 
-	data, err := client.Eip().List()
+	regionId := d.Get("region_id").(string)
+
+	data, err := client.Eip().List(&eip.ListRequest{
+		RegionId: regionId,
+		Start:    0,
+		Limit:    100,
+		Simplify: false,
+	})
 	if err != nil {
 		return diag.FromErr(err)
 	}
+
+	d.SetId("eips")
+	d.Set("eips", flattenDidiyunEips(*data))
+
 	return diags
 }

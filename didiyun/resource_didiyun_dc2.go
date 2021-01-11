@@ -12,7 +12,7 @@ import (
 	ds "github.com/shonenada/didiyun-go/schema"
 )
 
-func flattenDidiyunEip(eip ds.EipInfo) []map[string]interface{} {
+func flattenDidiyunEip(eip ds.Dc2EipInfo) []map[string]interface{} {
 	result := []map[string]interface{}{
 		{
 			"ip_address": eip.Ip,
