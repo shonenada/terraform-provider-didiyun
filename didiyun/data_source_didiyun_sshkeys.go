@@ -51,7 +51,7 @@ func dataSourceDidiyunSSHKeysRead(ctx context.Context, d *schema.ResourceData, m
 		e["uuid"] = r.PubKeyUuid
 		e["name"] = r.Name
 		e["fingerprint"] = r.Fingerprint
-		regions = append(regions, e)
+		sshkeys = append(sshkeys, e)
 	}
 
 	d.SetId("sshkeys")
