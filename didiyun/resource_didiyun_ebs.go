@@ -87,7 +87,7 @@ func resourceDidiyunEbsRead(ctx context.Context, d *schema.ResourceData, meta in
 
 	req := ebs.GetRequest{
 		RegionId: regionId,
-		EbsUuid:  uuid,
+		Uuid:     uuid,
 	}
 
 	data, err := client.Ebs().Get(&req)
@@ -98,12 +98,11 @@ func resourceDidiyunEbsRead(ctx context.Context, d *schema.ResourceData, meta in
 
 	d.Set("name", data.Name)
 	d.Set("size", data.Size)
-	d.Set("disk_type", data.Spec.DiskType)
 	d.Set("region_id", data.Region.Id)
-	d.Set("zone_id", data.Region.Zone[0].Id)
+	d.Set("zone_id", data.Region.Zone.Id)
 	d.Set("dc2_uuid", data.Dc2.Uuid)
 
-	if err := d.Set("tags", FlattenDidiyunTags(data.EbsTags)); err != nil {
+	if err := d.Set("tags", FlattenDidiyunTags(data.Tags)); err != nil {
 		return diag.Errorf("Failed to set `tags`: %v", err)
 	}
 
@@ -121,18 +120,18 @@ func resourceDidiyunEbsCreate(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	req := ebs.CreateRequest{
-		RegionId:     d.Get("region_id").(string),
-		ZoneId:       d.Get("zone_id").(string),
-		Name:         d.Get("name").(string),
-		Size:         d.Get("size").(int64),
-		DiskType:     d.Get("disk_type").(string),
-		AutoContinue: d.Get("auto_continue").(bool),
-		PayPeriod:    d.Get("pay_period").(int),
-		Count:        d.Get("ebs_count").(int),
-		CouponId:     d.Get("coupon_Id").(string),
-		Dc2Uuid:      d.Get("dc2_uuid").(string),
-		SnapUuid:     d.Get("snap_uuid").(string),
-		EbsTags:      tags,
+		RegionId:       d.Get("region_id").(string),
+		ZoneId:         d.Get("zone_id").(string),
+		Name:           d.Get("name").(string),
+		Size:           d.Get("size").(int64),
+		DiskType:       d.Get("disk_type").(string),
+		IsAutoContinue: d.Get("auto_continue").(bool),
+		PayPeriod:      d.Get("pay_period").(int),
+		Count:          d.Get("ebs_count").(int),
+		CouponId:       d.Get("coupon_Id").(string),
+		Dc2Uuid:        d.Get("dc2_uuid").(string),
+		SnapUuid:       d.Get("snap_uuid").(string),
+		Tags:           tags,
 	}
 
 	job, err := client.Ebs().Create(&req)
@@ -161,10 +160,10 @@ func resourceDidiyunEbsUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		name := d.Get("name").(string)
 		req := ebs.ChangeNameRequest{
 			RegionId: regionId,
-			Ebs: []ebs.ChangeNameInput{
+			Ebs: []ebs.ChangeNameParams{
 				{
-					EbsUuid: id,
-					Name:    name,
+					Uuid: id,
+					Name: name,
 				},
 			},
 		}
@@ -182,10 +181,10 @@ func resourceDidiyunEbsUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		size := d.Get("size").(int64)
 		req := ebs.ChangeSizeRequest{
 			RegionId: regionId,
-			Ebs: []ebs.ChangeSizeInput{
+			Ebs: []ebs.ChangeSizeParams{
 				{
-					EbsUuid: id,
-					Size:    size,
+					Uuid: id,
+					Size: size,
 				},
 			},
 		}
@@ -203,9 +202,9 @@ func resourceDidiyunEbsUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		dc2Uuid := d.Get("dc2_uuid").(string)
 		req := ebs.AttachRequest{
 			RegionId: regionId,
-			Ebs: []ebs.AttachInput{
+			Ebs: []ebs.AttachParams{
 				{
-					EbsUuid: d.Id(),
+					Uuid:    d.Id(),
 					Dc2Uuid: dc2Uuid,
 				},
 			},
@@ -229,9 +228,9 @@ func resourceDidiyunEbsDelete(ctx context.Context, d *schema.ResourceData, meta 
 
 	req := ebs.DeleteRequest{
 		RegionId: d.Get("region_id").(string),
-		Ebs: []ebs.DeleteInput{
+		Ebs: []ebs.DeleteParams{
 			{
-				EbsUuid: d.Id(),
+				Uuid: d.Id(),
 			},
 		},
 	}

@@ -49,7 +49,7 @@ func resourceDidiyunSSHKeyRead(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	for _, ele := range *keys {
-		if ele.PubKeyUuid == d.Id() {
+		if ele.Uuid == d.Id() {
 			d.Set("name", ele.Name)
 			d.Set("key", ele.Key)
 			d.Set("fingerprint", ele.Fingerprint)
@@ -74,7 +74,7 @@ func resourceDidiyunSSHKeyCreate(ctx context.Context, d *schema.ResourceData, me
 		return diag.Errorf("Failed to create SSH Key: %v", err)
 	}
 
-	d.SetId(data.PubKeyUuid)
+	d.SetId(data.Uuid)
 
 	return resourceDidiyunSSHKeyRead(ctx, d, meta)
 }
@@ -89,7 +89,7 @@ func resourceDidiyunSSHKeyDelete(ctx context.Context, d *schema.ResourceData, me
 	client := meta.(*ddy.Client)
 
 	req := sshkey.DeleteRequest{
-		PubKeyUuid: d.Id(),
+		Uuid: d.Id(),
 	}
 
 	_, err := client.SSHKey().Delete(&req)

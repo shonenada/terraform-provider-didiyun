@@ -171,7 +171,7 @@ func dataSourceDidiyunDc2ImageRead(ctx context.Context, d *schema.ResourceData, 
 		return diag.Errorf("Filterd images more than 1")
 	}
 
-	img := rv[0].(ddyds.ImageInfo)
+	img := rv[0].(ddyds.Image)
 
 	d.SetId(img.Uuid)
 	d.Set("uuid", img.Uuid)

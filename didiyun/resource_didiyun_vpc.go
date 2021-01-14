@@ -77,7 +77,7 @@ func resourceDidiyunVPCRead(ctx context.Context, d *schema.ResourceData, meta in
 
 	req := vpc.GetRequest{
 		RegionId: regionId,
-		VpcUuid:  uuid,
+		Uuid:     uuid,
 	}
 
 	data, err := client.Vpc().Get(&req)
@@ -87,7 +87,7 @@ func resourceDidiyunVPCRead(ctx context.Context, d *schema.ResourceData, meta in
 
 	d.Set("name", data.Name)
 	d.Set("cidr", data.CIDR)
-	d.Set("desc", data.Desc)
+	d.Set("desc", data.Description)
 	d.Set("is_default", data.IsDefault)
 
 	return diags
@@ -96,12 +96,12 @@ func resourceDidiyunVPCRead(ctx context.Context, d *schema.ResourceData, meta in
 func resourceDidiyunVPCCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*ddy.Client)
 
-	var subnets []vpc.SubnetInput
+	var subnets []vpc.SubnetParams
 	if data, ok := d.GetOk("subnet"); ok {
 		d := data.([]interface{})
 		for _, each := range d {
 			e := each.(map[string]interface{})
-			t := vpc.SubnetInput{}
+			t := vpc.SubnetParams{}
 
 			if v, ok := e["name"]; ok {
 				t.Name = v.(string)
@@ -149,9 +149,9 @@ func resourceDidiyunVPCUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		name := d.Get("name").(string)
 		req := vpc.ChangeNameRequest{
 			RegionId: region_id,
-			Vpc: []vpc.ChangeNameInput{{
-				VpcUuid: id,
-				Name:    name,
+			Vpc: []vpc.ChangeNameParams{{
+				Uuid: id,
+				Name: name,
 			}},
 		}
 		job, err := client.Vpc().ChangeName(&req)
@@ -172,9 +172,9 @@ func resourceDidiyunVPCDelete(ctx context.Context, d *schema.ResourceData, meta 
 
 	req := vpc.DeleteRequest{
 		RegionId: d.Get("region_id").(string),
-		Vpc: []vpc.DeleteInput{
+		Vpc: []vpc.DeleteParams{
 			{
-				VpcUuid: d.Id(),
+				Uuid: d.Id(),
 			},
 		},
 	}

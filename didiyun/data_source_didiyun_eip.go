@@ -71,7 +71,7 @@ func getByUuid(ctx context.Context, d *schema.ResourceData, meta interface{}) di
 	regionId := d.Get("region_id").(string)
 	data, err := client.Eip().Get(&eip.GetRequest{
 		RegionId: regionId,
-		EipUuid:  uuid,
+		Uuid:     uuid,
 	})
 	if err != nil {
 		return diag.FromErr(err)
@@ -106,10 +106,10 @@ func filterByIp(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 	regionId := d.Get("region_id").(string)
 	ip := d.Get("ip").(string)
 	data, err := client.Eip().List(&eip.ListRequest{
-		RegionId: regionId,
-		Start:    0,
-		Limit:    100,
-		Simplify: false,
+		RegionId:   regionId,
+		Start:      0,
+		Limit:      100,
+		IsSimplify: false,
 	})
 
 	if err != nil {

@@ -48,7 +48,7 @@ func dataSourceDidiyunSSHKeysRead(ctx context.Context, d *schema.ResourceData, m
 	sshkeys := make([]map[string]interface{}, 0, len(*data))
 	for _, r := range *data {
 		e := make(map[string]interface{})
-		e["uuid"] = r.PubKeyUuid
+		e["uuid"] = r.Uuid
 		e["name"] = r.Name
 		e["fingerprint"] = r.Fingerprint
 		sshkeys = append(sshkeys, e)

@@ -71,7 +71,7 @@ func dataSourceDidiyunEips() *schema.Resource {
 	}
 }
 
-func flattenDidiyunEips(eips []ds.EipInfo) []map[string]interface{} {
+func flattenDidiyunEips(eips []ds.Eip) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0, len(eips))
 
 	for _, eip := range eips {
@@ -109,10 +109,10 @@ func dataSourceDidiyunEipsRead(ctx context.Context, d *schema.ResourceData, meta
 	regionId := d.Get("region_id").(string)
 
 	data, err := client.Eip().List(&eip.ListRequest{
-		RegionId: regionId,
-		Start:    0,
-		Limit:    100,
-		Simplify: false,
+		RegionId:   regionId,
+		Start:      0,
+		Limit:      100,
+		IsSimplify: false,
 	})
 	if err != nil {
 		return diag.FromErr(err)

@@ -96,7 +96,7 @@ func dataSourceDidiyunDc2Images() *schema.Resource {
 	}
 }
 
-func flattenDidiyunDc2Images(images []ddyds.ImageInfo) []map[string]interface{} {
+func flattenDidiyunDc2Images(images []ddyds.Image) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0, len(images))
 	for _, img := range images {
 		r := make(map[string]interface{})
@@ -159,7 +159,7 @@ func dataSourceDidiyunDc2ImagesRead(ctx context.Context, d *schema.ResourceData,
 		return diag.FromErr(err)
 	}
 
-	rv := make([]ddyds.ImageInfo, 0)
+	rv := make([]ddyds.Image, 0)
 
 	for _, e := range *data {
 		if len(imgType) > 0 && e.ImgType != imgType {

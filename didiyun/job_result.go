@@ -15,7 +15,7 @@ func WaitForJob(client *ddy.Client, regionId string, jobUuid string) error {
 	return resource.Retry(TimeOut, func() *resource.RetryError {
 		jobs, err := client.Job().GetResult(&job.ResultRequest{
 			RegionId: regionId,
-			JobUuids: jobUuid,
+			Uuids:    jobUuid,
 		})
 		if err != nil {
 			return resource.RetryableError(fmt.Errorf("Failed to get job: %v", err))
@@ -27,11 +27,11 @@ func WaitForJob(client *ddy.Client, regionId string, jobUuid string) error {
 			return resource.RetryableError(fmt.Errorf("Wait for job"))
 		}
 
-		if !job.Done {
+		if !job.IsDone {
 			return resource.RetryableError(fmt.Errorf("Wait for job"))
 		}
 
-		if !job.Success {
+		if !job.IsSuccess {
 			return resource.NonRetryableError(fmt.Errorf("Failed to execute job: %v", job.Result))
 		}
 

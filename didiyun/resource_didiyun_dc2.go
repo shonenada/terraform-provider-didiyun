@@ -12,7 +12,7 @@ import (
 	ds "github.com/shonenada/didiyun-go/schema"
 )
 
-func flattenDidiyunEip(eip ds.Dc2EipInfo) []map[string]interface{} {
+func flattenDidiyunEip(eip ds.Dc2Eip) []map[string]interface{} {
 	result := []map[string]interface{}{
 		{
 			"ip_address": eip.Ip,
@@ -22,33 +22,29 @@ func flattenDidiyunEip(eip ds.Dc2EipInfo) []map[string]interface{} {
 	return result
 }
 
-func flattenDidiyunEbs(ebs []ds.EbsInfo) []map[string]interface{} {
+func flattenDidiyunEbs(ebs []ds.Dc2Ebs) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0, len(ebs))
 	for _, v := range ebs {
 		r := make(map[string]interface{})
 		r["attr"] = v.Attr
-		r["ebs_name"] = v.Name
-		r["size"] = v.Spec.Size
-		r["disktype"] = v.Spec.DiskType
-		r["tags"] = v.EbsTags
-
+		r["name"] = v.Name
 		result = append(result, r)
 	}
 	return result
 }
 
-func expandDc2Eip(m *schema.Set) dc2.EipInput {
+func expandDc2Eip(m *schema.Set) dc2.EipParams {
 	l := m.List()
 	d := l[0].(map[string]interface{})
 
-	eip := dc2.EipInput{}
+	eip := dc2.EipParams{}
 
 	if v, ok := d["band_width"]; ok {
 		eip.BandWidth, _ = v.(int)
 	}
 
 	if v, ok := d["charge_with_flow"]; ok {
-		eip.ChargeWithFlow = v.(bool)
+		eip.IsChargeWithFlow = v.(bool)
 	}
 
 	if v, ok := d["tags"]; ok {
@@ -57,18 +53,18 @@ func expandDc2Eip(m *schema.Set) dc2.EipInput {
 		for _, e := range rawTags {
 			tags = append(tags, e.(string))
 		}
-		eip.EipTags = tags
+		eip.Tags = tags
 	}
 
 	return eip
 }
 
-func expandDc2Ebs(m *schema.Set) []dc2.EbsInput {
+func expandDc2Ebs(m *schema.Set) []dc2.EbsParams {
 	l := m.List()
-	rv := make([]dc2.EbsInput, 0)
+	rv := make([]dc2.EbsParams, 0)
 	for _, raw := range l {
 		d := raw.(map[string]interface{})
-		e := dc2.EbsInput{}
+		e := dc2.EbsParams{}
 		if v, ok := d["count"]; ok {
 			e.Count, _ = strconv.Atoi(v.(string))
 		}
@@ -85,7 +81,7 @@ func expandDc2Ebs(m *schema.Set) []dc2.EbsInput {
 			e.SnapUuid = v.(string)
 		}
 		if v, ok := d["tags"]; ok {
-			e.EbsTags = v.([]string)
+			e.Tags = v.([]string)
 		}
 		rv = append(rv, e)
 	}
@@ -138,7 +134,7 @@ func resourceDidiyunDC2() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
-			"dc2_model": {
+			"model": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Model of DC2, all avaliable models: https://docs.didiyun.com/static/docs-content/products/DC2/%E5%88%9B%E5%BB%BADC2%EF%BC%88CreateDC2%EF%BC%89.html#Dc2Models",
@@ -246,7 +242,7 @@ func resourceDidiyunDC2() *schema.Resource {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
-						"ebs_name": {
+						"name": {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
@@ -254,10 +250,6 @@ func resourceDidiyunDC2() *schema.Resource {
 							Type:         schema.TypeInt,
 							Optional:     true,
 							ValidateFunc: validation.IntBetween(20, 16384),
-						},
-						"disktype": {
-							Type:     schema.TypeString,
-							Optional: true,
 						},
 						"snap_uuid": {
 							Type:     schema.TypeString,
@@ -286,7 +278,7 @@ func resourceDidiyunDC2Read(ctx context.Context, d *schema.ResourceData, meta in
 
 	req := dc2.GetRequest{
 		RegionId: regionId,
-		Dc2Uuid:  uuid,
+		Uuid:     uuid,
 	}
 
 	data, err := client.Dc2().Get(&req)
@@ -341,23 +333,23 @@ func resourceDidiyunDC2Create(ctx context.Context, d *schema.ResourceData, meta 
 	ebs := expandDc2Ebs(d.Get("ebs").(*schema.Set))
 
 	req := dc2.CreateRequest{
-		RegionId:     d.Get("region_id").(string),
-		ZoneId:       d.Get("zone_id").(string),
-		Name:         d.Get("name").(string),
-		AutoContinue: d.Get("auto_continue").(bool),
-		PayPeriod:    d.Get("pay_period").(int),
-		Count:        d.Get("dc2_count").(int),
-		SubnetUuid:   d.Get("subnet_uuid").(string),
-		Dc2Model:     d.Get("dc2_model").(string),
-		ImgUuid:      d.Get("image_uuid").(string),
-		PubKeyUuids:  sshkeys,
-		Password:     d.Get("password").(string),
-		RootDiskType: d.Get("rootdisk_type").(string),
-		RootDiskSize: d.Get("rootdisk_size").(int),
-		Dc2Tags:      dc2Tags,
-		SgUuids:      sgUuids,
-		Eip:          eip,
-		Ebs:          ebs,
+		RegionId:       d.Get("region_id").(string),
+		ZoneId:         d.Get("zone_id").(string),
+		Name:           d.Get("name").(string),
+		IsAutoContinue: d.Get("auto_continue").(bool),
+		PayPeriod:      d.Get("pay_period").(int),
+		Count:          d.Get("dc2_count").(int),
+		SubnetUuid:     d.Get("subnet_uuid").(string),
+		Model:          d.Get("model").(string),
+		ImgUuid:        d.Get("image_uuid").(string),
+		PubKeyUuids:    sshkeys,
+		Password:       d.Get("password").(string),
+		RootDiskType:   d.Get("rootdisk_type").(string),
+		RootDiskSize:   d.Get("rootdisk_size").(int),
+		Tags:           dc2Tags,
+		SgUuids:        sgUuids,
+		Eip:            eip,
+		Ebs:            ebs,
 	}
 
 	job, err := client.Dc2().Create(&req)
@@ -386,10 +378,10 @@ func resourceDidiyunDC2Update(ctx context.Context, d *schema.ResourceData, meta 
 		name := d.Get("name").(string)
 		req := dc2.ChangeNameRequest{
 			RegionId: regionId,
-			Dc2: []dc2.ChangeNameInput{
+			Dc2: []dc2.ChangeNameParams{
 				{
-					Dc2Uuid: id,
-					Name:    name,
+					Uuid: id,
+					Name: name,
 				},
 			},
 		}
@@ -409,9 +401,9 @@ func resourceDidiyunDC2Update(ctx context.Context, d *schema.ResourceData, meta 
 		password := d.Get("password").(string)
 		req := dc2.ChangePasswordRequest{
 			RegionId: regionId,
-			Dc2: []dc2.ChangePasswordInput{
+			Dc2: []dc2.ChangePasswordParams{
 				{
-					Dc2Uuid:  id,
+					Uuid:     id,
 					Password: password,
 				},
 			},
@@ -428,14 +420,14 @@ func resourceDidiyunDC2Update(ctx context.Context, d *schema.ResourceData, meta 
 		}
 	}
 
-	if d.HasChange("dc2_model") {
-		model := d.Get("dc2_model").(string)
+	if d.HasChange("model") {
+		model := d.Get("model").(string)
 		req := dc2.ChangeSpecRequest{
 			RegionId: regionId,
-			Dc2: []dc2.ChangeSpecInput{
+			Dc2: []dc2.ChangeSpecParams{
 				{
-					Dc2Uuid:  id,
-					Dc2Model: model,
+					Uuid:  id,
+					Model: model,
 				},
 			},
 		}
@@ -459,13 +451,13 @@ func resourceDidiyunDC2Delete(ctx context.Context, d *schema.ResourceData, meta 
 	client := meta.(*ddy.Client)
 
 	req := dc2.DeleteRequest{
-		RegionId:  d.Get("region_id").(string),
-		DeleteEip: true,
-		DeleteEbs: true,
-		IgnoreSLB: true,
-		Dc2: []dc2.DeleteInput{
-			dc2.DeleteInput{
-				Dc2Uuid: d.Id(),
+		RegionId:    d.Get("region_id").(string),
+		IsDeleteEip: true,
+		IsDeleteEbs: true,
+		IsIgnoreSLB: true,
+		Dc2: []dc2.DeleteParams{
+			dc2.DeleteParams{
+				Uuid: d.Id(),
 			},
 		},
 	}
