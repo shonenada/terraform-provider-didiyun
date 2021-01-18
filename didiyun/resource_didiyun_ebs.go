@@ -141,7 +141,7 @@ func resourceDidiyunEbsCreate(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	if err := WaitForJob(client, d.Get("region_id").(string), job.Uuid); err != nil {
-		return diag.Errorf("Failed to create DC2: %v", err)
+		return diag.Errorf("Failed to create Ebs: %v", err)
 	}
 
 	d.SetId(job.ResourceUuid)
