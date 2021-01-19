@@ -36,6 +36,8 @@ func Provider() *schema.Provider {
 
 			"didiyun_eips": dataSourceDidiyunEips(),
 			"didiyun_eip":  dataSourceDidiyunEip(),
+
+			"didiyun_sshkeys": dataSourceDidiyunSSHKeys(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
