@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	ddy "github.com/shonenada/didiyun-go"
-	ebs "github.com/shonenada/didiyun-go/eip"
+	eip "github.com/shonenada/didiyun-go/eip"
 )
 
 func resourceDidiyunEip() *schema.Resource {
@@ -48,7 +48,7 @@ func resourceDidiyunEip() *schema.Resource {
 				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Schema{
-					Type:         scheam.TypeString,
+					Type:         schema.TypeString,
 					ValidateFunc: validation.NoZeroValues,
 				},
 			},
@@ -60,7 +60,7 @@ func resourceDidiyunEipRead(ctx context.Context, d *schema.ResourceData, meta in
 	var diags diag.Diagnostics
 	client := meta.(*ddy.Client)
 
-	uuid := d.GetId()
+	uuid := d.Id()
 	regionId := d.Get("region").(string)
 
 	data, err := client.Eip().Get(&eip.GetRequest{
@@ -85,7 +85,6 @@ func resourceDidiyunEipRead(ctx context.Context, d *schema.ResourceData, meta in
 }
 
 func resourceDidiyunEipCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
 	client := meta.(*ddy.Client)
 
 	var tags []string
@@ -100,7 +99,7 @@ func resourceDidiyunEipCreate(ctx context.Context, d *schema.ResourceData, meta 
 		IsAutoContinue:   d.Get("auto_continue").(bool),
 		IsChargeWithFlow: d.Get("charge_with_flow").(bool),
 		PayPeriod:        d.Get("pay_period").(int),
-		Count:            d.Get("count").(string),
+		Count:            d.Get("count").(int),
 		BandWidth:        d.Get("bandwidth").(int),
 		Tags:             tags,
 	}
@@ -122,12 +121,12 @@ func resourceDidiyunEipCreate(ctx context.Context, d *schema.ResourceData, meta 
 
 func resourceDidiyunEipUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
-	client := meta.(*ddy.Client)
+	// client := meta.(*ddy.Client)
 	return diags
 }
 
 func resourceDidiyunEipDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
-	client := meta.(*ddy.Client)
+	// client := meta.(*ddy.Client)
 	return diags
 }
