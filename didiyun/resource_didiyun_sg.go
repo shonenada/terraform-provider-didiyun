@@ -42,7 +42,7 @@ func resourceDidiyunSgRead(ctx context.Context, d *schema.ResourceData, meta int
 	uuid := d.Id()
 	regionId := d.Get("region_id").(string)
 
-	data, err := client.Sg.Get(regionId, uuid)
+	data, err := client.Sg().GetByUuid(regionId, uuid)
 	if err != nil {
 		return diag.Errorf("Failed to read SG: %v", err)
 	}
