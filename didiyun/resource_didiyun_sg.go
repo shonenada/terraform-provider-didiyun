@@ -37,7 +37,18 @@ func resourceDidiyunSg() *schema.Resource {
 
 func resourceDidiyunSgRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
-	// client := meta.(*ddy.Client)
+	client := meta.(*ddy.Client)
+
+	uuid := d.Id()
+	regionId := d.Get("region_id").(string)
+
+	data, err := client.Sg.Get(regionId, uuid)
+	if err != nil {
+		return diag.Errorf("Failed to read SG: %v", err)
+	}
+
+	d.Set("name", data.Name)
+
 	return diags
 }
 
