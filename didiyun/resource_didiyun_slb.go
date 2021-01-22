@@ -59,13 +59,57 @@ func resourceDidiyunSlb() *schema.Resource {
 }
 
 func resourceDidiyunSlbRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+	client := meta.(*ddy.Client)
+
+	uuid := d.Id()
+	regionId := d.Get("region_id").(string)
+
+	req := slb.GetRequest{
+		RegionId: regionId,
+		Uuid:     uuid,
+	}
+
+	data, err := client.Slb().Get(&req)
+	if err != nil {
+		return diag.Errorf("Failed to read SLB: %v", err)
+	}
+
+	d.Set("name", data.Name)
+
+	return diags
 }
 
 func resourceDidiyunSlbCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*ddy.Client)
+	req := slb.CreateRequest{
+		RegionId:       d.Get("region_id").(string),
+		ZoneId:         d.Get("zone_id").(string),
+		Name:           d.Get("name").(string),
+		IsAutoContinue: d.Get("is_auto_continue").(bool),
+		PayPeriod:      d.Get("pay_period").(int),
+		VpcUuid:        d.Get("vpc_uuid").(string),
+		AddressType:    d.Get("address_type").(string),
+	}
+	job, err := client.Slb().Create(&req)
+
+	if err != nil {
+		return diag.Errorf("Failed to create Slb: %v", err)
+	}
+
+	if err := WaitForJob(client, d.Get("region_id").(string), job.Uuid); err != nil {
+		return diag.Errorf("Failed to create Ebs: %v", err)
+	}
+
+	d.SetId(job.ResourceUuid)
+
+	return resourceDidiyunSlbRead(ctx, d, meta)
 }
 
 func resourceDidiyunSlbUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return resourceDidiyunSlbRead(ctx, d, meta)
 }
 
 func resourceDidiyunSlbDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return resourceDidiyunSlbRead(ctx, d, meta)
 }
