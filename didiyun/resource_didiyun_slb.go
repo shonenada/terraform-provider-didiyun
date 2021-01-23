@@ -111,5 +111,27 @@ func resourceDidiyunSlbUpdate(ctx context.Context, d *schema.ResourceData, meta 
 }
 
 func resourceDidiyunSlbDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var diags diag.Diagnostics
+	client := meta.(*ddy.Client)
+	req := eip.DeleteRequest{
+		Slb: []slb.DeleteParam{
+			{
+				Uuid: d.Id(),
+			},
+		}
+	}
+
+	job, err := client.Slb().Delete(&req)
+
+	if err != nil {
+		return diag.Errorf("Failed to delete EBS: %v", err)
+	}
+
+	if err := WaitForJob(client, d.Get("region_id").(string), job.Uuid); err != nil {
+		return diag.Errorf("Failed to delete Slb: %v", err)
+	}
+
+	d.SetId("")
+
 	return resourceDidiyunSlbRead(ctx, d, meta)
 }
