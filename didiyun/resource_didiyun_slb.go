@@ -107,6 +107,33 @@ func resourceDidiyunSlbCreate(ctx context.Context, d *schema.ResourceData, meta 
 }
 
 func resourceDidiyunSlbUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*ddy.Client)
+
+	id := d.Id()
+	regionId := d.Get("region_id").(string)
+
+	if d.HasChange("name") {
+		name := d.Get("name").(string)
+		req := slb.ChangeNameRequest{
+			Slb: []slb.ChangeNameParams{
+				{
+					Uuid: id,
+					Name: name,
+				},
+			},
+		}
+
+		job, err := client.slb().ChangeName(&req)
+
+		if err != nil {
+			return diag.Errorf("Failed update name of SLB: %v", err)
+		}
+
+		if err := WaitForJob(client, regionId, job.Uuid); err != nil {
+			return diag.Errorf("Failed update name of SLB: %v", id)
+		}
+	}
+
 	return resourceDidiyunSlbRead(ctx, d, meta)
 }
 
@@ -118,7 +145,7 @@ func resourceDidiyunSlbDelete(ctx context.Context, d *schema.ResourceData, meta 
 			{
 				Uuid: d.Id(),
 			},
-		}
+		},
 	}
 
 	job, err := client.Slb().Delete(&req)
